@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Anonymous Messaging Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-light: #e0e7ff;
+            --text-main: #1f2937;
+            --text-secondary: #4b5563;
+            --text-muted: #9ca3af;
+            --bg-main: #f3f4f6;
+            --bg-card: #ffffff;
+            --border-color: #e5e7eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --transition: all 0.2s ease-in-out;
+        }
+
+        [data-theme="dark"] {
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --primary-light: #312e81;
+            --text-main: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --bg-main: #111827;
+            --bg-card: #1f2937;
+            --border-color: #374151;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+        }
+
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .admin-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: calc(100vh - 73px);
+        }
+
+        aside {
+            background-color: var(--bg-card);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sidebar-item:hover, .sidebar-item.active {
+            background-color: var(--primary-light);
+            color: var(--primary);
+        }
+
+        main {
+            padding: 2rem;
+            overflow-y: auto;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-card h4 {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-top: 0.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-radius: var(--radius);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+        }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+        .btn-outline { background-color: transparent; border-color: var(--border-color); color: var(--text-main); }
+        .btn-outline:hover { background-color: var(--border-color); }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-secondary);
+            background-color: var(--bg-main);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+        }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius);
+            color: white;
+            font-weight: 500;
+            box-shadow: var(--shadow);
+            max-width: 350px;
+        }
+        .toast-success { background-color: var(--success); }
+        .toast-error { background-color: var(--danger); }
+        .toast-warning { background-color: var(--warning); }
+        .toast-info { background-color: var(--primary); }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            gap: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition);
+        }
+        #loading-overlay.active { opacity: 1; pointer-events: auto; }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .gap-2 { gap: 0.5rem; }
+        .justify-between { justify-content: space-between; }
+        .items-center { align-items: center; }
+    </style>
+</head>
+<body data-theme="light">
+
+    <!-- Header -->
+    <header>
+        <div class="nav-container">
+            <a class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                Admin Control Center
+            </a>
+            <div>
+                <button class="btn btn-danger btn-sm" onclick="adminLogout()">ออกจากระบบหลังบ้าน</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Admin Login Screen (If not authenticated) -->
+    <div id="admin-login-screen" class="card" style="max-width: 400px; margin: 4rem auto;">
+        <h2 style="margin-bottom: 1.5rem; text-align: center;">เข้าสู่ระบบผู้ดูแล</h2>
+        <div style="margin-bottom: 1rem;">
+            <label style="display:block; font-weight:500; margin-bottom:0.5rem;">Session Token หรือรหัสผ่านผู้ดูแล</label>
+            <input type="password" id="admin-token-input" class="form-control" placeholder="กรอก Session Token">
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="verifyAdminLogin()">เข้าสู่ระบบ Admin</button>
+    </div>
+
+    <!-- Admin Layout -->
+    <div id="admin-main-layout" class="admin-layout hidden">
+        <!-- Sidebar -->
+        <aside>
+            <a class="sidebar-item active" onclick="switchAdminView('dashboard', this)">Dashboard</a>
+            <a class="sidebar-item" onclick="switchAdminView('users', this)">จัดการสมาชิก</a>
+            <a class="sidebar-item" onclick="switchAdminView('reports', this)">จัดการรายงาน</a>
+            <a class="sidebar-item" onclick="switchAdminView('settings', this)">ตั้งค่าระบบ</a>
+            <a class="sidebar-item" onclick="switchAdminView('database', this)">สถานะฐานข้อมูล</a>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main>
+            <!-- VIEW: Dashboard -->
+            <section id="admin-view-dashboard">
+                <h2 style="margin-bottom: 1.5rem;">Dashboard ภาพรวมระบบ</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>สมาชิกทั้งหมด</h4>
+                        <div class="value" id="stat-total-users">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>ข้อความทั้งหมด</h4>
+                        <div class="value" id="stat-total-messages">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>รายงานปัญหา</h4>
+                        <div class="value" id="stat-total-reports">0</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: Users Management -->
+            <section id="admin-view-users" class="hidden">
+                <h2 style="margin-bottom: 1.5rem;">จัดการสมาชิก</h2>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>UserID</th>
+                                <th>Username</th>
+                                <th>DisplayName</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VIEW: Reports Management -->
+            <section id="admin-view-reports" class="hidden">
+                <h2 style="margin-bottom: 1.5rem;">จัดการรายงานปัญหา</h2>
+                <div class="card">
+                    <p style="color: var(--text-secondary);">ยังไม่มีรายงานปัญหาในระบบขณะนี้</p>
+                </div>
+            </section>
+
+            <!-- VIEW: System Settings -->
+            <section id="admin-view-settings" class="hidden">
+                <h2 style="margin-bottom: 1.5rem;">ตั้งค่าระบบ</h2>
+                <div class="card">
+                    <p style="color: var(--text-secondary);">ตั้งค่าข้อจำกัดและความปลอดภัยของแพลตฟอร์ม</p>
+                </div>
+            </section>
+
+            <!-- VIEW: Database Health -->
+            <section id="admin-view-database" class="hidden">
+                <h2 style="margin-bottom: 1.5rem;">สถานะฐานข้อมูล & การบำรุงรักษา</h2>
+                <div class="card">
+                    <div class="flex gap-2" style="margin-bottom: 1.5rem;">
+                        <button class="btn btn-primary" onclick="runDatabaseSetup()">ตรวจสอบและสร้างชีต (Setup)</button>
+                        <button class="btn btn-outline" onclick="runDatabaseRepair()">ซ่อมแซมโครงสร้าง (Repair)</button>
+                    </div>
+                    <div id="db-status-container">
+                        <p style="color: var(--text-secondary);">กดปุ่มเพื่อตรวจสอบสถานะฐานข้อมูล</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p id="loading-text" style="font-weight: 500;">กำลังประมวลผล...</p>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- JavaScript -->
+    <script>
+        const CONFIG = {
+            API_URL: localStorage.getItem('gas_api_url') || 'https://script.google.com/macros/s/AKfycbybm1mcsi8ba2WtipWQPHXbzWtGflyUkzQMbezz3HpkzRT-21Ssq7d7fDnaRrXuMKrS/exec'
+        };
+
+        let adminState = {
+            sessionToken: localStorage.getItem('adminSessionToken') || null
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (adminState.sessionToken) {
+                verifyAdminLoginToken();
+            }
+        });
+
+        function showLoading(text = 'กำลังประมวลผล...') {
+            document.getElementById('loading-text').innerText = text;
+            document.getElementById('loading-overlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.remove('active');
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function switchAdminView(viewName, element) {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('aside .sidebar-item').forEach(item => item.classList.remove('active'));
+            
+            const target = document.getElementById(`admin-view-${viewName}`);
+            if (target) target.classList.remove('hidden');
+            if (element) element.classList.add('active');
+
+            if (viewName === 'dashboard') fetchAdminDashboard();
+            if (viewName === 'database') checkDatabaseStatus();
+        }
+
+        async function callAdminApi(action, payload = {}) {
+            try {
+                const response = await fetch(CONFIG.API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, sessionToken: adminState.sessionToken, ...payload })
+                });
+                return await response.json();
+            } catch (err) {
+                showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ API', 'error');
+                return null;
+            }
+        }
+
+        async function verifyAdminLogin() {
+            const token = document.getElementById('admin-token-input').value;
+            if (!token) {
+                showToast('กรุณากรอก Session Token', 'warning');
+                return;
+            }
+            adminState.sessionToken = token;
+            localStorage.setItem('adminSessionToken', token);
+            verifyAdminLoginToken();
+        }
+
+        async function verifyAdminLoginToken() {
+            showLoading('กำลังตรวจสอบสิทธิ์ผู้ดูแล...');
+            const res = await callAdminApi('getAdminDashboard');
+            hideLoading();
+
+            if (res && res.success) {
+                document.getElementById('admin-login-screen').classList.add('hidden');
+                document.getElementById('admin-main-layout').classList.remove('hidden');
+                fetchAdminDashboard();
+                showToast('เข้าสู่ระบบผู้ดูแลสำเร็จ', 'success');
+            } else {
+                showToast('สิทธิ์ผู้ดูแลไม่ถูกต้องหรือหมดอายุ', 'error');
+                adminLogout();
+            }
+        }
+
+        function adminLogout() {
+            adminState.sessionToken = null;
+            localStorage.removeItem('adminSessionToken');
+            document.getElementById('admin-main-layout').classList.add('hidden');
+            document.getElementById('admin-login-screen').classList.remove('hidden');
+            showToast('ออกจากระบบผู้ดูแลแล้ว', 'info');
+        }
+
+        async function fetchAdminDashboard() {
+            const res = await callAdminApi('getAdminDashboard');
+            if (res && res.success) {
+                document.getElementById('stat-total-users').innerText = res.data.totalUsers || 0;
+                document.getElementById('stat-total-messages').innerText = res.data.totalMessages || 0;
+                document.getElementById('stat-total-reports').innerText = res.data.totalReports || 0;
+            }
+        }
+
+        async function checkDatabaseStatus() {
+            showLoading('กำลังตรวจสอบสถานะฐานข้อมูล...');
+            const res = await callAdminApi('getDatabaseStatus');
+            hideLoading();
+
+            const container = document.getElementById('db-status-container');
+            if (res && res.success) {
+                let html = '<table><thead><tr><th>ชีต (Sheet)</th><th>สถานะ</th></tr></thead><tbody>';
+                for (const [sheet, status] of Object.entries(res.data)) {
+                    html += `<tr><td>${sheet}</td><td>${status}</td></tr>`;
+                }
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p style="color: var(--danger);">ไม่สามารถดึงสถานะฐานข้อมูลได้</p>';
+            }
+        }
+
+        async function runDatabaseSetup() {
+            showLoading('กำลังตั้งค่าฐานข้อมูล...');
+            const res = await callAdminApi('setupDatabase');
+            hideLoading();
+            if (res && res.success) {
+                showToast('ตั้งค่าฐานข้อมูลสำเร็จ', 'success');
+                checkDatabaseStatus();
+            } else {
+                showToast('เกิดข้อผิดพลาดในการตั้งค่าฐานข้อมูล', 'error');
+            }
+        }
+
+        async function runDatabaseRepair() {
+            showLoading('กำลังซ่อมแซมฐานข้อมูล...');
+            const res = await callAdminApi('repairDatabase');
+            hideLoading();
+            if (res && res.success) {
+                showToast('ซ่อมแซมฐานข้อมูลสำเร็จ', 'success');
+                checkDatabaseStatus();
+            } else {
+                showToast('เกิดข้อผิดพลาดในการซ่อมแซม', 'error');
+            }
+        }
+    </script>
+</body>
+</html>
