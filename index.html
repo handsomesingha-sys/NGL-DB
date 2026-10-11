@@ -1,534 +1,3044 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Anonymous Messaging Platform</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --primary-light: #e0e7ff;
-            --text-main: #1f2937;
-            --text-secondary: #4b5563;
-            --text-muted: #9ca3af;
-            --bg-main: #f3f4f6;
-            --bg-card: #ffffff;
-            --border-color: #e5e7eb;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --radius: 12px;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            --transition: all 0.2s ease-in-out;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123b63">
+  <meta name="description" content="AnonMessage Administration Panel">
+  <title>ศูนย์จัดการระบบ | AnonMessage</title>
 
-        [data-theme="dark"] {
-            --primary: #6366f1;
-            --primary-hover: #818cf8;
-            --primary-light: #312e81;
-            --text-main: #f3f4f6;
-            --text-secondary: #9ca3af;
-            --text-muted: #6b7280;
-            --bg-main: #111827;
-            --bg-card: #1f2937;
-            --border-color: #374151;
-        }
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', 'Noto Sans Thai', sans-serif;
-        }
+  <style>
+    :root {
+      --primary: #123b63;
+      --primary-dark: #0b2946;
+      --primary-light: #eaf2fa;
+      --accent: #2563eb;
+      --success: #15803d;
+      --success-bg: #dcfce7;
+      --warning: #b45309;
+      --warning-bg: #fef3c7;
+      --danger: #b91c1c;
+      --danger-bg: #fee2e2;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --surface: #ffffff;
+      --background: #f4f7fb;
+      --sidebar-width: 255px;
+      --radius: 14px;
+      --shadow: 0 5px 22px rgba(15, 23, 42, .06);
+    }
 
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            transition: var(--transition);
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        header {
-            background-color: var(--bg-card);
-            border-bottom: 1px solid var(--border-color);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+    html {
+      scroll-behavior: smooth;
+    }
 
-        .nav-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 1rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family: "TH Sarabun New", sans-serif;
+      font-size: 19px;
+      line-height: 1.35;
+    }
 
-        .logo {
-            font-weight: 700;
-            font-size: 1.25rem;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-decoration: none;
-        }
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
 
-        .admin-layout {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            min-height: calc(100vh - 73px);
-        }
+    button {
+      cursor: pointer;
+    }
 
-        aside {
-            background-color: var(--bg-card);
-            border-right: 1px solid var(--border-color);
-            padding: 1.5rem 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
 
-        .sidebar-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            border-radius: var(--radius);
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            cursor: pointer;
-            transition: var(--transition);
-        }
+    .hidden {
+      display: none !important;
+    }
 
-        .sidebar-item:hover, .sidebar-item.active {
-            background-color: var(--primary-light);
-            color: var(--primary);
-        }
+    .muted {
+      color: var(--muted);
+    }
 
-        main {
-            padding: 2rem;
-            overflow-y: auto;
-            max-width: 1200px;
-            width: 100%;
-        }
+    .small {
+      font-size: 16px;
+    }
 
-        .card {
-            background-color: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            padding: 1.5rem;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-        }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 25px;
+    }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
+    .brand-icon {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 13px;
+      color: white;
+      background: linear-gradient(135deg, #2563eb, #123b63);
+      flex-shrink: 0;
+    }
 
-        .stat-card {
-            background-color: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            padding: 1.25rem;
-            box-shadow: var(--shadow);
-        }
+    .login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(59,130,246,.14), transparent 32%),
+        radial-gradient(circle at 90% 90%, rgba(18,59,99,.12), transparent 32%),
+        var(--background);
+    }
 
-        .stat-card h4 {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
+    .login-card {
+      width: 100%;
+      max-width: 460px;
+      padding: 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: 0 20px 60px rgba(15,23,42,.10);
+      text-align: center;
+    }
 
-        .stat-card .value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary);
-            margin-top: 0.5rem;
-        }
+    .login-logo {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
 
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1.2rem;
-            font-size: 0.95rem;
-            font-weight: 500;
-            border-radius: var(--radius);
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: var(--transition);
-            text-decoration: none;
-        }
+    .login-logo .brand-icon {
+      width: 68px;
+      height: 68px;
+      font-size: 30px;
+      border-radius: 20px;
+    }
 
-        .btn-primary { background-color: var(--primary); color: white; }
-        .btn-primary:hover { background-color: var(--primary-hover); }
-        .btn-outline { background-color: transparent; border-color: var(--border-color); color: var(--text-main); }
-        .btn-outline:hover { background-color: var(--border-color); }
-        .btn-danger { background-color: var(--danger); color: white; }
-        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+    .login-card h1 {
+      margin: 0 0 8px;
+      font-size: 31px;
+      color: var(--primary);
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-        }
+    .login-card p {
+      margin: 0 0 24px;
+      color: var(--muted);
+    }
 
-        th, td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 0.95rem;
-        }
+    .login-notice {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--primary-light);
+      color: var(--primary);
+      text-align: left;
+      font-size: 17px;
+    }
 
-        th {
-            font-weight: 600;
-            color: var(--text-secondary);
-            background-color: var(--bg-main);
-        }
+    #googleSignInButton {
+      display: flex;
+      justify-content: center;
+      min-height: 44px;
+    }
 
-        .form-control {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            font-size: 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            background-color: var(--bg-card);
-            color: var(--text-main);
-        }
+    .login-error {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 10px;
+      color: var(--danger);
+      background: var(--danger-bg);
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
 
-        /* Toast Notifications */
-        #toast-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+    .app-layout {
+      min-height: 100vh;
+    }
 
-        .toast {
-            padding: 1rem 1.25rem;
-            border-radius: var(--radius);
-            color: white;
-            font-weight: 500;
-            box-shadow: var(--shadow);
-            max-width: 350px;
-        }
-        .toast-success { background-color: var(--success); }
-        .toast-error { background-color: var(--danger); }
-        .toast-warning { background-color: var(--warning); }
-        .toast-info { background-color: var(--primary); }
+    .sidebar {
+      position: fixed;
+      z-index: 30;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      width: var(--sidebar-width);
+      color: #e2e8f0;
+      background: var(--primary-dark);
+      overflow-y: auto;
+      transition: transform .25s ease;
+    }
 
-        /* Loading Overlay */
-        #loading-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(255, 255, 255, 0.8);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1001;
-            gap: 1rem;
-            opacity: 0;
-            pointer-events: none;
-            transition: var(--transition);
-        }
-        #loading-overlay.active { opacity: 1; pointer-events: auto; }
-        .spinner {
-            width: 48px; height: 48px;
-            border: 4px solid var(--border-color);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 82px;
+      padding: 18px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
 
-        .hidden { display: none !important; }
-        .flex { display: flex; }
-        .gap-2 { gap: 0.5rem; }
-        .justify-between { justify-content: space-between; }
-        .items-center { align-items: center; }
-    </style>
+    .sidebar-brand .brand-icon {
+      color: var(--primary-dark);
+      background: #fff;
+    }
+
+    .sidebar-brand .brand-text {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .sidebar-subtitle {
+      display: block;
+      font-size: 15px;
+      font-weight: 400;
+      color: #cbd5e1;
+    }
+
+    .sidebar-section {
+      padding: 18px 14px 6px;
+      color: #94a3b8;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .nav-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding: 5px 12px 18px;
+    }
+
+    .nav-button {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 14px;
+      color: #dbe5f0;
+      background: transparent;
+      border: 0;
+      border-radius: 10px;
+      text-align: left;
+      transition: background .15s ease, color .15s ease;
+    }
+
+    .nav-button i {
+      width: 22px;
+      text-align: center;
+      font-size: 18px;
+    }
+
+    .nav-button:hover {
+      background: rgba(255,255,255,.09);
+      color: #fff;
+    }
+
+    .nav-button.active {
+      background: #fff;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding: 14px;
+      border-top: 1px solid rgba(255,255,255,.12);
+    }
+
+    .sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      margin-bottom: 12px;
+    }
+
+    .avatar {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      overflow: hidden;
+      border-radius: 50%;
+      color: var(--primary);
+      background: #e2e8f0;
+      font-weight: 700;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .sidebar-user-info {
+      min-width: 0;
+    }
+
+    .sidebar-user-info strong,
+    .sidebar-user-info span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-user-info strong {
+      color: white;
+    }
+
+    .sidebar-user-info span {
+      color: #cbd5e1;
+      font-size: 15px;
+    }
+
+    .sidebar-logout {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 9px;
+      color: white;
+      background: rgba(255,255,255,.06);
+    }
+
+    .sidebar-logout:hover {
+      background: rgba(255,255,255,.13);
+    }
+
+    .main-area {
+      min-height: 100vh;
+      margin-left: var(--sidebar-width);
+    }
+
+    .topbar {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 76px;
+      padding: 14px 28px;
+      background: rgba(255,255,255,.94);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      color: var(--primary);
+      font-size: 27px;
+    }
+
+    .topbar-subtitle {
+      margin-top: 1px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .icon-button {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      color: var(--primary);
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .mobile-menu-button {
+      display: none;
+    }
+
+    .main-content {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .page-view {
+      display: none;
+    }
+
+    .page-view.active {
+      display: block;
+      animation: fadeIn .18s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .page-heading h2 {
+      margin: 0 0 4px;
+      color: var(--primary);
+      font-size: 27px;
+    }
+
+    .page-heading p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .card {
+      min-width: 0;
+      padding: 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .card + .card {
+      margin-top: 20px;
+    }
+
+    .card-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card-heading h3 {
+      margin: 0;
+      font-size: 23px;
+      color: var(--primary);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .stat-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+      padding: 20px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-icon {
+      display: grid;
+      place-items: center;
+      width: 50px;
+      height: 50px;
+      flex-shrink: 0;
+      border-radius: 14px;
+      font-size: 21px;
+    }
+
+    .stat-icon.blue {
+      color: #1d4ed8;
+      background: #dbeafe;
+    }
+
+    .stat-icon.green {
+      color: #166534;
+      background: #dcfce7;
+    }
+
+    .stat-icon.orange {
+      color: #9a3412;
+      background: #ffedd5;
+    }
+
+    .stat-icon.purple {
+      color: #6b21a8;
+      background: #f3e8ff;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .stat-value {
+      margin-top: 2px;
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--primary);
+      overflow-wrap: anywhere;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .field label {
+      color: #334155;
+      font-weight: 600;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      min-height: 43px;
+      padding: 9px 12px;
+      color: var(--text);
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+
+    .search-field {
+      flex: 1 1 260px;
+    }
+
+    .filter-field {
+      flex: 0 1 200px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 9px 15px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: .15s ease;
+    }
+
+    .button-primary {
+      color: white;
+      background: var(--primary);
+    }
+
+    .button-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .button-secondary {
+      color: var(--primary);
+      background: white;
+      border-color: #cbd5e1;
+    }
+
+    .button-secondary:hover {
+      background: #f1f5f9;
+    }
+
+    .button-danger {
+      color: white;
+      background: #b91c1c;
+    }
+
+    .button-danger:hover {
+      background: #991b1b;
+    }
+
+    .button-warning {
+      color: #78350f;
+      background: #fef3c7;
+      border-color: #fde68a;
+    }
+
+    .button-success {
+      color: white;
+      background: #15803d;
+    }
+
+    .button-small {
+      min-height: 34px;
+      padding: 5px 10px;
+      font-size: 16px;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      text-align: left;
+    }
+
+    th,
+    td {
+      padding: 12px 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      color: #334155;
+      background: #f8fafc;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    td {
+      overflow-wrap: anywhere;
+    }
+
+    .table-primary {
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .table-secondary {
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge-active,
+    .badge-resolved,
+    .badge-success {
+      color: #166534;
+      background: var(--success-bg);
+    }
+
+    .badge-suspended,
+    .badge-dismissed,
+    .badge-danger {
+      color: #991b1b;
+      background: var(--danger-bg);
+    }
+
+    .badge-pending,
+    .badge-warning {
+      color: #92400e;
+      background: var(--warning-bg);
+    }
+
+    .badge-neutral {
+      color: #475569;
+      background: #e2e8f0;
+    }
+
+    .empty-state {
+      padding: 34px 18px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state i {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 34px;
+      color: #94a3b8;
+    }
+
+    .empty-state strong {
+      display: block;
+      color: var(--text);
+      font-size: 21px;
+    }
+
+    .loading-state {
+      padding: 32px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .loading-state i {
+      margin-right: 8px;
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .pagination-controls {
+      display: flex;
+      gap: 7px;
+    }
+
+    .pagination-controls button {
+      min-width: 40px;
+    }
+
+    .content-box {
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #f8fafc;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .message-preview {
+      max-width: 450px;
+      max-height: 180px;
+      overflow: auto;
+    }
+
+    .media-preview {
+      display: block;
+      max-width: 180px;
+      max-height: 140px;
+      margin-top: 8px;
+      border-radius: 8px;
+      object-fit: contain;
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .info-list {
+      display: grid;
+      grid-template-columns: minmax(120px, 180px) 1fr;
+      gap: 10px 14px;
+      margin: 0;
+    }
+
+    .info-list dt {
+      color: var(--muted);
+    }
+
+    .info-list dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .notice {
+      padding: 13px 15px;
+      margin-bottom: 16px;
+      border-radius: 10px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1e40af;
+    }
+
+    .footer-note {
+      margin-top: 28px;
+      padding: 18px 0 6px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .mobile-overlay {
+      display: none;
+    }
+
+    .toast-area {
+      position: fixed;
+      z-index: 100;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      max-width: min(420px, calc(100vw - 36px));
+      padding: 12px 16px;
+      color: white;
+      background: #334155;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.success {
+      background: #166534;
+    }
+
+    .toast.error {
+      background: #991b1b;
+    }
+
+    @media (max-width: 1200px) {
+      .stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .main-content {
+        padding: 22px;
+      }
+    }
+
+    @media (max-width: 800px) {
+      :root {
+        --sidebar-width: 270px;
+      }
+
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .mobile-overlay.show {
+        display: block;
+        position: fixed;
+        z-index: 25;
+        inset: 0;
+        background: rgba(15,23,42,.5);
+      }
+
+      .main-area {
+        margin-left: 0;
+      }
+
+      .mobile-menu-button {
+        display: inline-grid;
+      }
+
+      .topbar {
+        padding: 12px 16px;
+      }
+
+      .main-content {
+        padding: 16px;
+      }
+
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+
+      .page-heading {
+        flex-direction: column;
+      }
+
+      .card {
+        padding: 16px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .stat-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .stat-card {
+        padding: 13px;
+        gap: 9px;
+        align-items: flex-start;
+      }
+
+      .stat-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        font-size: 17px;
+      }
+
+      .stat-value {
+        font-size: 25px;
+      }
+
+      .stat-label {
+        font-size: 15px;
+      }
+
+      .topbar h1 {
+        font-size: 23px;
+      }
+
+      .topbar-subtitle {
+        display: none;
+      }
+
+      .login-card {
+        padding: 25px 18px;
+      }
+
+      .toolbar .field,
+      .toolbar .button {
+        width: 100%;
+      }
+
+      .info-list {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+
+      .info-list dd {
+        margin-bottom: 9px;
+      }
+    }
+  </style>
 </head>
-<body data-theme="light">
 
-    <!-- Header -->
-    <header>
-        <div class="nav-container">
-            <a class="logo">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                Admin Control Center
-            </a>
-            <div>
-                <button class="btn btn-danger btn-sm" onclick="adminLogout()">ออกจากระบบหลังบ้าน</button>
+<body>
+
+  <!-- หน้าลงชื่อเข้าใช้ -->
+  <section id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="brand-icon">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+      </div>
+
+      <h1>ศูนย์จัดการระบบ</h1>
+      <p>AnonMessage Administration Panel</p>
+
+      <div id="googleSignInButton"></div>
+
+      <div id="loginMessage" class="login-error hidden" role="alert"></div>
+
+      <div class="login-notice">
+        <i class="fa-solid fa-lock"></i>
+        สำหรับผู้ดูแลระบบที่ได้รับอนุญาตเท่านั้น
+        การเข้าสู่ระบบจะตรวจสอบสิทธิ์จากเซิร์ฟเวอร์
+      </div>
+
+      <div style="margin-top:22px" class="small muted">
+        <i class="fa-solid fa-circle-info"></i>
+        หากบัญชีไม่มีสิทธิ์แอดมิน กรุณาติดต่อผู้ดูแลหลัก
+      </div>
+    </div>
+  </section>
+
+  <!-- หน้าระบบหลังเข้าสู่ระบบ -->
+  <div id="appLayout" class="app-layout hidden">
+
+    <div id="mobileOverlay" class="mobile-overlay"></div>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div class="brand-text">
+          AnonMessage
+          <span class="sidebar-subtitle">Administration Panel</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">เมนูหลัก</div>
+
+      <nav class="nav-menu" aria-label="เมนูผู้ดูแล">
+        <button class="nav-button active" data-page="dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>ภาพรวมระบบ</span>
+        </button>
+
+        <button class="nav-button" data-page="users">
+          <i class="fa-solid fa-users"></i>
+          <span>จัดการผู้ใช้</span>
+        </button>
+
+        <button class="nav-button" data-page="reports">
+          <i class="fa-solid fa-flag"></i>
+          <span>รายงานที่ได้รับแจ้ง</span>
+        </button>
+
+        <button class="nav-button" data-page="messages">
+          <i class="fa-solid fa-envelope"></i>
+          <span>ตรวจสอบข้อความ</span>
+        </button>
+
+        <button class="nav-button" data-page="audit">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span>ประวัติการทำงาน</span>
+        </button>
+
+        <button class="nav-button" data-page="system">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>ข้อมูลระบบ</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-user">
+          <div class="avatar" id="sidebarAvatar">
+            <i class="fa-solid fa-user"></i>
+          </div>
+          <div class="sidebar-user-info">
+            <strong id="sidebarDisplayName">ผู้ดูแลระบบ</strong>
+            <span id="sidebarEmail">-</span>
+          </div>
+        </div>
+
+        <button id="logoutButton" class="sidebar-logout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          ออกจากระบบ
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="mobileMenuButton" class="icon-button mobile-menu-button"
+                  aria-label="เปิดเมนู">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+
+          <div>
+            <h1 id="pageTitle">ภาพรวมระบบ</h1>
+            <div id="pageSubtitle" class="topbar-subtitle">
+              ภาพรวมการทำงานของ AnonMessage
             </div>
+          </div>
         </div>
-    </header>
 
-    <!-- Admin Login Screen (If not authenticated) -->
-    <div id="admin-login-screen" class="card" style="max-width: 400px; margin: 4rem auto;">
-        <h2 style="margin-bottom: 1.5rem; text-align: center;">เข้าสู่ระบบผู้ดูแล</h2>
-        <div style="margin-bottom: 1rem;">
-            <label style="display:block; font-weight:500; margin-bottom:0.5rem;">Session Token หรือรหัสผ่านผู้ดูแล</label>
-            <input type="password" id="admin-token-input" class="form-control" placeholder="กรอก Session Token">
+        <button id="refreshButton" class="button button-secondary">
+          <i class="fa-solid fa-rotate"></i>
+          <span>รีเฟรช</span>
+        </button>
+      </header>
+
+      <div class="main-content">
+
+        <!-- DASHBOARD -->
+        <section id="page-dashboard" class="page-view active">
+          <div class="page-heading">
+            <div>
+              <h2>ภาพรวมระบบ</h2>
+              <p>สรุปข้อมูลที่ได้รับจากฐานข้อมูลจริง</p>
+            </div>
+          </div>
+
+          <div class="stat-grid">
+            <article class="stat-card">
+              <div class="stat-icon blue">
+                <i class="fa-solid fa-users"></i>
+              </div>
+              <div>
+                <div class="stat-label">ผู้ใช้ทั้งหมด</div>
+                <div id="statTotalUsers" class="stat-value">-</div>
+              </div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-icon green">
+                <i class="fa-solid fa-user-check"></i>
+              </div>
+              <div>
+                <div class="stat-label">บัญชีที่ใช้งาน</div>
+                <div id="statActiveUsers" class="stat-value">-</div>
+              </div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-icon orange">
+                <i class="fa-solid fa-envelope"></i>
+              </div>
+              <div>
+                <div class="stat-label">ข้อความทั้งหมด</div>
+                <div id="statTotalMessages" class="stat-value">-</div>
+              </div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-icon purple">
+                <i class="fa-solid fa-flag"></i>
+              </div>
+              <div>
+                <div class="stat-label">รายงานรอตรวจสอบ</div>
+                <div id="statPendingReports" class="stat-value">-</div>
+              </div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-icon blue">
+                <i class="fa-solid fa-user-slash"></i>
+              </div>
+              <div>
+                <div class="stat-label">บัญชีที่ไม่ Active</div>
+                <div id="statSuspendedUsers" class="stat-value">-</div>
+              </div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-icon green">
+                <i class="fa-solid fa-comment-dots"></i>
+              </div>
+              <div>
+                <div class="stat-label">ข้อความที่ Active</div>
+                <div id="statActiveMessages" class="stat-value">-</div>
+              </div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-icon purple">
+                <i class="fa-solid fa-circle-play"></i>
+              </div>
+              <div>
+                <div class="stat-label">สตอรี่ทั้งหมด</div>
+                <div id="statTotalStories" class="stat-value">-</div>
+              </div>
+            </article>
+
+            <article class="stat-card">
+              <div class="stat-icon orange">
+                <i class="fa-solid fa-eye"></i>
+              </div>
+              <div>
+                <div class="stat-label">สตอรี่ที่ Active</div>
+                <div id="statActiveStories" class="stat-value">-</div>
+              </div>
+            </article>
+          </div>
+
+          <div class="card">
+            <div class="card-heading">
+              <h3><i class="fa-solid fa-circle-info"></i> สถานะการเชื่อมต่อ</h3>
+            </div>
+            <div id="connectionStatus" class="notice">
+              กำลังตรวจสอบข้อมูลจาก API...
+            </div>
+            <div class="small muted">
+              ข้อมูลหน้านี้อ่านจาก API ของ AnonMessage ไม่ได้สร้างข้อมูลสถิติขึ้นมาเอง
+            </div>
+          </div>
+        </section>
+
+        <!-- USERS -->
+        <section id="page-users" class="page-view">
+          <div class="page-heading">
+            <div>
+              <h2>จัดการผู้ใช้</h2>
+              <p>ค้นหา ตรวจสอบสถานะ และจัดการการใช้งานบัญชี</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <form id="usersFilterForm" class="toolbar">
+              <div class="field search-field">
+                <label for="usersSearch">ค้นหาผู้ใช้</label>
+                <input id="usersSearch" type="search"
+                       placeholder="อีเมล ชื่อ Username หรือ User ID">
+              </div>
+
+              <div class="field filter-field">
+                <label for="usersStatus">สถานะบัญชี</label>
+                <select id="usersStatus">
+                  <option value="">ทุกสถานะ</option>
+                  <option value="active">ใช้งานอยู่</option>
+                  <option value="suspended">ถูกระงับ</option>
+                </select>
+              </div>
+
+              <button class="button button-primary" type="submit">
+                <i class="fa-solid fa-magnifying-glass"></i> ค้นหา
+              </button>
+
+              <button class="button button-secondary" type="button"
+                      id="usersResetButton">
+                ล้างตัวกรอง
+              </button>
+            </form>
+
+            <div id="usersTableContainer" class="table-wrap">
+              <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดผู้ใช้...
+              </div>
+            </div>
+
+            <div id="usersPagination" class="pagination"></div>
+          </div>
+        </section>
+
+        <!-- REPORTS -->
+        <section id="page-reports" class="page-view">
+          <div class="page-heading">
+            <div>
+              <h2>รายงานที่ได้รับแจ้ง</h2>
+              <p>ตรวจสอบรายงานและบันทึกผลการพิจารณา</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <form id="reportsFilterForm" class="toolbar">
+              <div class="field filter-field">
+                <label for="reportsStatus">สถานะรายงาน</label>
+                <select id="reportsStatus">
+                  <option value="">ทุกสถานะ</option>
+                  <option value="pending">รอตรวจสอบ</option>
+                  <option value="resolved">ดำเนินการแล้ว</option>
+                  <option value="dismissed">ยกเลิกรายงาน</option>
+                </select>
+              </div>
+
+              <button class="button button-primary" type="submit">
+                <i class="fa-solid fa-filter"></i> กรองข้อมูล
+              </button>
+            </form>
+
+            <div id="reportsTableContainer" class="table-wrap">
+              <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดรายงาน...
+              </div>
+            </div>
+
+            <div id="reportsPagination" class="pagination"></div>
+          </div>
+        </section>
+
+        <!-- MESSAGES -->
+        <section id="page-messages" class="page-view">
+          <div class="page-heading">
+            <div>
+              <h2>ตรวจสอบข้อความ</h2>
+              <p>ตรวจสอบข้อความตามสถานะที่มีอยู่ในฐานข้อมูล</p>
+            </div>
+          </div>
+
+          <div class="notice">
+            <i class="fa-solid fa-shield-halved"></i>
+            หน้านี้แสดงข้อความที่ API ผู้ดูแลส่งกลับมา การตรวจสอบไม่ได้หมายความว่าข้อความจะถูกลบหรือแก้ไขโดยอัตโนมัติ
+          </div>
+
+          <div class="card">
+            <form id="messagesFilterForm" class="toolbar">
+              <div class="field filter-field">
+                <label for="messagesStatus">สถานะข้อความ</label>
+                <select id="messagesStatus">
+                  <option value="">ทุกสถานะ</option>
+                  <option value="active">Active</option>
+                  <option value="deleted">Deleted</option>
+                  <option value="hidden">Hidden</option>
+                </select>
+              </div>
+
+              <button class="button button-primary" type="submit">
+                <i class="fa-solid fa-filter"></i> กรองข้อมูล
+              </button>
+            </form>
+
+            <div id="messagesTableContainer" class="table-wrap">
+              <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อความ...
+              </div>
+            </div>
+
+            <div id="messagesPagination" class="pagination"></div>
+          </div>
+        </section>
+
+        <!-- AUDIT LOGS -->
+        <section id="page-audit" class="page-view">
+          <div class="page-heading">
+            <div>
+              <h2>ประวัติการทำงาน</h2>
+              <p>ตรวจสอบเหตุการณ์ที่ระบบบันทึกไว้</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div id="auditTableContainer" class="table-wrap">
+              <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดประวัติ...
+              </div>
+            </div>
+
+            <div id="auditPagination" class="pagination"></div>
+          </div>
+        </section>
+
+        <!-- SYSTEM INFO -->
+        <section id="page-system" class="page-view">
+          <div class="page-heading">
+            <div>
+              <h2>ข้อมูลระบบ</h2>
+              <p>ข้อมูลการเชื่อมต่อและบัญชีผู้ดูแลที่เข้าสู่ระบบ</p>
+            </div>
+          </div>
+
+          <div class="two-column">
+            <div class="card">
+              <div class="card-heading">
+                <h3>การเชื่อมต่อ API</h3>
+              </div>
+
+              <dl class="info-list">
+                <dt>ชื่อระบบ</dt>
+                <dd>AnonMessage</dd>
+
+                <dt>API Endpoint</dt>
+                <dd id="systemApiUrl">-</dd>
+
+                <dt>สถานะ API</dt>
+                <dd id="systemApiStatus">ยังไม่ได้ตรวจสอบ</dd>
+
+                <dt>วิธีเชื่อมต่อ</dt>
+                <dd>Cloudflare Worker → Google Apps Script</dd>
+
+                <dt>ฐานข้อมูล</dt>
+                <dd>Google Sheets</dd>
+              </dl>
+
+              <button id="systemHealthButton" class="button button-secondary"
+                      style="margin-top:20px">
+                <i class="fa-solid fa-heart-pulse"></i> ตรวจสอบ API
+              </button>
+            </div>
+
+            <div class="card">
+              <div class="card-heading">
+                <h3>บัญชีผู้ดูแล</h3>
+              </div>
+
+              <dl class="info-list">
+                <dt>ชื่อที่แสดง</dt>
+                <dd id="systemUserName">-</dd>
+
+                <dt>อีเมล</dt>
+                <dd id="systemUserEmail">-</dd>
+
+                <dt>Username</dt>
+                <dd id="systemUsername">-</dd>
+
+                <dt>บทบาท</dt>
+                <dd id="systemUserRole">-</dd>
+
+                <dt>User ID</dt>
+                <dd id="systemUserId">-</dd>
+              </dl>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-heading">
+              <h3>หมายเหตุด้านความปลอดภัย</h3>
+            </div>
+            <ul>
+              <li>สิทธิ์แอดมินต้องได้รับการตรวจสอบจาก API ฝั่งเซิร์ฟเวอร์</li>
+              <li>อย่าเผยแพร่ Session Token หรือ OAuth Client Secret</li>
+              <li>กำหนดอีเมลแอดมินใน Script Properties ชื่อ ADMIN_EMAILS</li>
+              <li>การเปลี่ยนสถานะผู้ใช้และการตรวจสอบรายงานจะบันทึกประวัติผ่าน API ที่รองรับ</li>
+            </ul>
+          </div>
+        </section>
+
+        <div class="footer-note">
+          AnonMessage Administration Panel
+          <br>
+          <span>ระบบบริหารจัดการสำหรับผู้ดูแลที่ได้รับอนุญาต</span>
         </div>
-        <button class="btn btn-primary" style="width: 100%;" onclick="verifyAdminLogin()">เข้าสู่ระบบ Admin</button>
-    </div>
+      </div>
+    </main>
+  </div>
 
-    <!-- Admin Layout -->
-    <div id="admin-main-layout" class="admin-layout hidden">
-        <!-- Sidebar -->
-        <aside>
-            <a class="sidebar-item active" onclick="switchAdminView('dashboard', this)">Dashboard</a>
-            <a class="sidebar-item" onclick="switchAdminView('users', this)">จัดการสมาชิก</a>
-            <a class="sidebar-item" onclick="switchAdminView('reports', this)">จัดการรายงาน</a>
-            <a class="sidebar-item" onclick="switchAdminView('settings', this)">ตั้งค่าระบบ</a>
-            <a class="sidebar-item" onclick="switchAdminView('database', this)">สถานะฐานข้อมูล</a>
-        </aside>
+  <div id="toastArea" class="toast-area" aria-live="polite"></div>
 
-        <!-- Main Content Area -->
-        <main>
-            <!-- VIEW: Dashboard -->
-            <section id="admin-view-dashboard">
-                <h2 style="margin-bottom: 1.5rem;">Dashboard ภาพรวมระบบ</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h4>สมาชิกทั้งหมด</h4>
-                        <div class="value" id="stat-total-users">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>ข้อความทั้งหมด</h4>
-                        <div class="value" id="stat-total-messages">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>รายงานปัญหา</h4>
-                        <div class="value" id="stat-total-reports">0</div>
-                    </div>
-                </div>
-            </section>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-            <!-- VIEW: Users Management -->
-            <section id="admin-view-users" class="hidden">
-                <h2 style="margin-bottom: 1.5rem;">จัดการสมาชิก</h2>
-                <div class="card">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>UserID</th>
-                                <th>Username</th>
-                                <th>DisplayName</th>
-                                <th>Email</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-table-body">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+  <script>
+    'use strict';
 
-            <!-- VIEW: Reports Management -->
-            <section id="admin-view-reports" class="hidden">
-                <h2 style="margin-bottom: 1.5rem;">จัดการรายงานปัญหา</h2>
-                <div class="card">
-                    <p style="color: var(--text-secondary);">ยังไม่มีรายงานปัญหาในระบบขณะนี้</p>
-                </div>
-            </section>
+    /* =========================================================
+       CONFIGURATION
+       เปลี่ยน API_BASE_URL ให้เป็น URL ของ Cloudflare Worker จริง
+       ========================================================= */
 
-            <!-- VIEW: System Settings -->
-            <section id="admin-view-settings" class="hidden">
-                <h2 style="margin-bottom: 1.5rem;">ตั้งค่าระบบ</h2>
-                <div class="card">
-                    <p style="color: var(--text-secondary);">ตั้งค่าข้อจำกัดและความปลอดภัยของแพลตฟอร์ม</p>
-                </div>
-            </section>
+    const CONFIG = Object.freeze({
+      APP_NAME: 'AnonMessage',
 
-            <!-- VIEW: Database Health -->
-            <section id="admin-view-database" class="hidden">
-                <h2 style="margin-bottom: 1.5rem;">สถานะฐานข้อมูล & การบำรุงรักษา</h2>
-                <div class="card">
-                    <div class="flex gap-2" style="margin-bottom: 1.5rem;">
-                        <button class="btn btn-primary" onclick="runDatabaseSetup()">ตรวจสอบและสร้างชีต (Setup)</button>
-                        <button class="btn btn-outline" onclick="runDatabaseRepair()">ซ่อมแซมโครงสร้าง (Repair)</button>
-                    </div>
-                    <div id="db-status-container">
-                        <p style="color: var(--text-secondary);">กดปุ่มเพื่อตรวจสอบสถานะฐานข้อมูล</p>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
+      API_BASE_URL: 'https://aged-wind-2abe.thepickffcer.workers.dev/',
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <p id="loading-text" style="font-weight: 500;">กำลังประมวลผล...</p>
-    </div>
+      GOOGLE_CLIENT_ID:
+        '1022921992521-66fjmcq5qhrsrtk0hu6e6no84sn51ka6.apps.googleusercontent.com',
 
-    <!-- Toast Container -->
-    <div id="toast-container"></div>
+      SESSION_STORAGE_KEY: 'anonmessage_session_token',
+      LAST_USER_KEY: 'anonmessage_last_user',
 
-    <!-- JavaScript -->
-    <script>
-        const CONFIG = {
-            API_URL: localStorage.getItem('gas_api_url') || 'https://script.google.com/macros/s/AKfycbybm1mcsi8ba2WtipWQPHXbzWtGflyUkzQMbezz3HpkzRT-21Ssq7d7fDnaRrXuMKrS/exec'
-        };
+      DEFAULT_PAGE_SIZE: 20
+    });
 
-        let adminState = {
-            sessionToken: localStorage.getItem('adminSessionToken') || null
-        };
+    const state = {
+      sessionToken: '',
+      user: null,
+      currentPage: 'dashboard',
+      googleInitialized: false,
+      usersPage: 1,
+      usersTotalPages: 1,
+      reportsPage: 1,
+      reportsTotalPages: 1,
+      messagesPage: 1,
+      messagesTotalPages: 1,
+      auditPage: 1,
+      auditTotalPages: 1,
+      busy: false
+    };
 
-        window.addEventListener('DOMContentLoaded', () => {
-            if (adminState.sessionToken) {
-                verifyAdminLoginToken();
-            }
+    const PAGE_INFO = {
+      dashboard: {
+        title: 'ภาพรวมระบบ',
+        subtitle: 'ภาพรวมการทำงานของ AnonMessage'
+      },
+      users: {
+        title: 'จัดการผู้ใช้',
+        subtitle: 'ค้นหาและจัดการสถานะบัญชีผู้ใช้'
+      },
+      reports: {
+        title: 'รายงานที่ได้รับแจ้ง',
+        subtitle: 'ตรวจสอบและบันทึกผลการพิจารณารายงาน'
+      },
+      messages: {
+        title: 'ตรวจสอบข้อความ',
+        subtitle: 'ตรวจสอบรายการข้อความจากระบบ'
+      },
+      audit: {
+        title: 'ประวัติการทำงาน',
+        subtitle: 'ตรวจสอบประวัติเหตุการณ์ในระบบ'
+      },
+      system: {
+        title: 'ข้อมูลระบบ',
+        subtitle: 'สถานะการเชื่อมต่อและข้อมูลผู้ดูแล'
+      }
+    };
+
+    /* =========================================================
+       DOM AND FORMATTING HELPERS
+       ========================================================= */
+
+    function byId(id) {
+      return document.getElementById(id);
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function safeUrl(value) {
+      const raw = String(value || '').trim();
+
+      if (!raw) {
+        return '';
+      }
+
+      try {
+        const parsed = new URL(raw);
+
+        if (parsed.protocol !== 'https:' &&
+            parsed.protocol !== 'http:') {
+          return '';
+        }
+
+        return parsed.href;
+      } catch (error) {
+        return '';
+      }
+    }
+
+    function formatNumber(value) {
+      return Number(value || 0).toLocaleString('th-TH');
+    }
+
+    function formatDate(value) {
+      if (!value) {
+        return '-';
+      }
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return String(value);
+      }
+
+      return new Intl.DateTimeFormat('th-TH', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(date);
+    }
+
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+
+      toast.className = 'toast ' + (type || '');
+      toast.textContent = String(message || '');
+
+      byId('toastArea').appendChild(toast);
+
+      window.setTimeout(function () {
+        toast.remove();
+      }, 4500);
+    }
+
+    function showLoginMessage(message) {
+      const box = byId('loginMessage');
+
+      box.textContent = String(message || '');
+      box.classList.remove('hidden');
+    }
+
+    function hideLoginMessage() {
+      byId('loginMessage').textContent = '';
+      byId('loginMessage').classList.add('hidden');
+    }
+
+    function showLoading(containerId, message) {
+      const container = byId(containerId);
+
+      if (!container) {
+        return;
+      }
+
+      container.innerHTML =
+        '<div class="loading-state">' +
+          '<i class="fa-solid fa-spinner fa-spin"></i> ' +
+          escapeHtml(message || 'กำลังโหลดข้อมูล...') +
+        '</div>';
+    }
+
+    function renderEmpty(containerId, title, description) {
+      const container = byId(containerId);
+
+      if (!container) {
+        return;
+      }
+
+      container.innerHTML =
+        '<div class="empty-state">' +
+          '<i class="fa-regular fa-folder-open"></i>' +
+          '<strong>' + escapeHtml(title || 'ไม่มีข้อมูล') + '</strong>' +
+          (description
+            ? '<div>' + escapeHtml(description) + '</div>'
+            : '') +
+        '</div>';
+    }
+
+    function statusBadge(status) {
+      const value = String(status || '').toLowerCase();
+
+      const labels = {
+        active: 'ใช้งานอยู่',
+        suspended: 'ถูกระงับ',
+        pending: 'รอตรวจสอบ',
+        resolved: 'ดำเนินการแล้ว',
+        dismissed: 'ยกเลิกรายงาน',
+        deleted: 'ลบแล้ว',
+        hidden: 'ซ่อนแล้ว',
+        revoked: 'ยกเลิกแล้ว',
+        admin: 'ผู้ดูแลระบบ',
+        user: 'ผู้ใช้ทั่วไป'
+      };
+
+      let className = 'badge-neutral';
+
+      if (value === 'active' || value === 'resolved') {
+        className = 'badge-active';
+      } else if (value === 'pending') {
+        className = 'badge-pending';
+      } else if (
+        value === 'suspended' ||
+        value === 'dismissed' ||
+        value === 'deleted' ||
+        value === 'hidden' ||
+        value === 'revoked'
+      ) {
+        className = 'badge-suspended';
+      }
+
+      return '<span class="badge ' + className + '">' +
+        escapeHtml(labels[value] || status || 'ไม่ระบุ') +
+        '</span>';
+    }
+
+    function getSessionToken() {
+      return state.sessionToken ||
+        localStorage.getItem(CONFIG.SESSION_STORAGE_KEY) ||
+        '';
+    }
+
+    function saveSessionToken(token) {
+      state.sessionToken = String(token || '');
+
+      if (state.sessionToken) {
+        localStorage.setItem(
+          CONFIG.SESSION_STORAGE_KEY,
+          state.sessionToken
+        );
+      } else {
+        localStorage.removeItem(CONFIG.SESSION_STORAGE_KEY);
+      }
+    }
+
+    function getApiUrl() {
+      const base = String(CONFIG.API_BASE_URL || '').trim();
+
+      if (!base ||
+          base.indexOf('YOUR-CLOUDFLARE-WORKER-URL') !== -1) {
+        throw new Error(
+          'กรุณากำหนด API_BASE_URL เป็น URL ของ Cloudflare Worker จริง'
+        );
+      }
+
+      let parsed;
+
+      try {
+        parsed = new URL(base);
+      } catch (error) {
+        throw new Error('รูปแบบ API_BASE_URL ไม่ถูกต้อง');
+      }
+
+      if (parsed.protocol !== 'https:') {
+        throw new Error('API_BASE_URL ต้องใช้ HTTPS');
+      }
+
+      return base.replace(/\/+$/, '');
+    }
+
+    /* =========================================================
+       API CLIENT
+       รูปแบบตรงกับ Code.gs:
+       POST { action: "...", data: {...} }
+       ========================================================= */
+
+    async function apiRequest(action, data, options) {
+      const opts = options || {};
+      const payload = Object.assign({}, data || {});
+
+      if (opts.auth !== false && getSessionToken()) {
+        if (!Object.prototype.hasOwnProperty.call(
+          payload,
+          'sessionToken'
+        )) {
+          payload.sessionToken = getSessionToken();
+        }
+      }
+
+      const url = getApiUrl();
+      let response;
+
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify({
+            action: String(action),
+            data: payload
+          }),
+          redirect: 'follow',
+          cache: 'no-store'
+        });
+      } catch (error) {
+        throw new Error(
+          'เชื่อมต่อ API ไม่สำเร็จ กรุณาตรวจสอบ URL ของ Worker, CORS และสถานะ Deploy'
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error('API ตอบกลับด้วย HTTP ' + response.status);
+      }
+
+      let result;
+
+      try {
+        result = await response.json();
+      } catch (error) {
+        throw new Error(
+          'API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Cloudflare Worker และ Code.gs'
+        );
+      }
+
+      if (!result || typeof result !== 'object') {
+        throw new Error('รูปแบบข้อมูล API ไม่ถูกต้อง');
+      }
+
+      if (!result.ok) {
+        const code = String(result.error || 'API_ERROR');
+        const message = String(result.message || 'คำขอไม่สำเร็จ');
+
+        if (
+          opts.auth !== false &&
+          [
+            'AUTH_REQUIRED',
+            'INVALID_SESSION',
+            'SESSION_REVOKED',
+            'SESSION_EXPIRED',
+            'ACCOUNT_DISABLED'
+          ].indexOf(code) !== -1
+        ) {
+          saveSessionToken('');
+          state.user = null;
+          showLoginScreen();
+        }
+
+        throw new Error(message + ' (' + code + ')');
+      }
+
+      return result;
+    }
+
+    /* =========================================================
+       GOOGLE SIGN-IN
+       ========================================================= */
+
+    function initializeGoogleSignIn() {
+      if (!CONFIG.GOOGLE_CLIENT_ID ||
+          CONFIG.GOOGLE_CLIENT_ID.indexOf('YOUR_') === 0) {
+        showLoginMessage(
+          'กรุณากำหนด Google OAuth Client ID ให้ถูกต้อง'
+        );
+        return;
+      }
+
+      if (
+        !window.google ||
+        !window.google.accounts ||
+        !window.google.accounts.id
+      ) {
+        window.setTimeout(initializeGoogleSignIn, 400);
+        return;
+      }
+
+      if (state.googleInitialized) {
+        return;
+      }
+
+      try {
+        window.google.accounts.id.initialize({
+          client_id: CONFIG.GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredential,
+          auto_select: false,
+          cancel_on_tap_outside: true
         });
 
-        function showLoading(text = 'กำลังประมวลผล...') {
-            document.getElementById('loading-text').innerText = text;
-            document.getElementById('loading-overlay').classList.add('active');
+        window.google.accounts.id.renderButton(
+          byId('googleSignInButton'),
+          {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'pill',
+            logo_alignment: 'left',
+            width: 280
+          }
+        );
+
+        state.googleInitialized = true;
+      } catch (error) {
+        showLoginMessage(
+          'ตั้งค่า Google Sign-In ไม่สำเร็จ: ' + error.message
+        );
+      }
+    }
+
+    async function handleGoogleCredential(credentialResponse) {
+      hideLoginMessage();
+
+      if (!credentialResponse ||
+          !credentialResponse.credential) {
+        showLoginMessage(
+          'Google ไม่ได้ส่งข้อมูลยืนยันตัวตนกลับมา'
+        );
+        return;
+      }
+
+      try {
+        const result = await apiRequest(
+          'googleLogin',
+          {
+            idToken: credentialResponse.credential,
+            userAgent: navigator.userAgent
+          },
+          {
+            auth: false
+          }
+        );
+
+        if (!result.sessionToken || !result.user) {
+          throw new Error(
+            'API ไม่ได้ส่ง sessionToken หรือข้อมูลผู้ใช้กลับมา'
+          );
         }
 
-        function hideLoading() {
-            document.getElementById('loading-overlay').classList.remove('active');
+        saveSessionToken(result.sessionToken);
+        state.user = result.user;
+
+        localStorage.setItem(
+          CONFIG.LAST_USER_KEY,
+          JSON.stringify({
+            userId: result.user.userId,
+            username: result.user.username,
+            displayName: result.user.displayName
+          })
+        );
+
+        /*
+         * เรียก API ที่ต้องใช้สิทธิ์แอดมินทันที
+         * หากบัญชีไม่มีสิทธิ์ ระบบจะปฏิเสธที่ฝั่งเซิร์ฟเวอร์
+         */
+        await apiRequest('adminDashboard', {});
+
+        showAppScreen();
+        renderAdminIdentity();
+
+        await navigateTo('dashboard');
+
+        showToast('เข้าสู่ระบบผู้ดูแลสำเร็จ', 'success');
+      } catch (error) {
+        saveSessionToken('');
+        state.user = null;
+
+        showLoginScreen();
+
+        showLoginMessage(
+          'เข้าสู่ระบบผู้ดูแลไม่สำเร็จ: ' + error.message
+        );
+      }
+    }
+
+    async function restoreSession() {
+      const token = localStorage.getItem(
+        CONFIG.SESSION_STORAGE_KEY
+      );
+
+      if (!token) {
+        showLoginScreen();
+        return;
+      }
+
+      state.sessionToken = token;
+
+      try {
+        const result = await apiRequest('getMe', {});
+
+        state.user = result.user || null;
+
+        if (!state.user) {
+          throw new Error('ไม่พบข้อมูลผู้ใช้');
         }
 
-        function showToast(message, type = 'success') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.innerText = message;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+        /*
+         * ตรวจสอบสิทธิ์จากเซิร์ฟเวอร์
+         * ไม่เชื่อถือข้อมูล role ที่บันทึกไว้ในเบราว์เซอร์
+         */
+        await apiRequest('adminDashboard', {});
+
+        showAppScreen();
+        renderAdminIdentity();
+
+        await navigateTo('dashboard');
+      } catch (error) {
+        saveSessionToken('');
+        state.user = null;
+        showLoginScreen();
+      }
+    }
+
+    function showLoginScreen() {
+      byId('loginScreen').classList.remove('hidden');
+      byId('appLayout').classList.add('hidden');
+    }
+
+    function showAppScreen() {
+      byId('loginScreen').classList.add('hidden');
+      byId('appLayout').classList.remove('hidden');
+    }
+
+    function renderAdminIdentity() {
+      const user = state.user || {};
+
+      const name = user.displayName ||
+        user.username ||
+        'ผู้ดูแลระบบ';
+
+      const email = user.email || '-';
+      const avatarUrl = safeUrl(user.avatarUrl);
+
+      byId('sidebarDisplayName').textContent = name;
+      byId('sidebarEmail').textContent = email;
+
+      if (avatarUrl) {
+        byId('sidebarAvatar').innerHTML =
+          '<img src="' + escapeHtml(avatarUrl) +
+          '" alt="รูปผู้ดูแล">';
+      } else {
+        byId('sidebarAvatar').innerHTML =
+          '<i class="fa-solid fa-user"></i>';
+      }
+
+      byId('systemUserName').textContent = name;
+      byId('systemUserEmail').textContent = email;
+      byId('systemUsername').textContent = user.username || '-';
+      byId('systemUserRole').textContent = user.role || '-';
+      byId('systemUserId').textContent = user.userId || '-';
+      byId('systemApiUrl').textContent = CONFIG.API_BASE_URL;
+    }
+
+    async function logout() {
+      const answer = await Swal.fire({
+        icon: 'question',
+        title: 'ออกจากระบบผู้ดูแล?',
+        text: 'คุณจะต้องเข้าสู่ระบบใหม่เพื่อเปิดหน้าแอดมินอีกครั้ง',
+        showCancelButton: true,
+        confirmButtonText: 'ออกจากระบบ',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#b91c1c'
+      });
+
+      if (!answer.isConfirmed) {
+        return;
+      }
+
+      /*
+       * Code.gs ปัจจุบันไม่มี action logout สำหรับ session
+       * การทำงานนี้จึงลบ token ในเบราว์เซอร์เท่านั้น
+       * หากต้องการเพิกถอน session ฝั่งเซิร์ฟเวอร์
+       * ต้องเพิ่ม API logout/revoke session ใน Code.gs ก่อน
+       */
+      saveSessionToken('');
+      state.user = null;
+
+      try {
+        localStorage.removeItem(CONFIG.LAST_USER_KEY);
+      } catch (error) {
+        // ไม่ต้องทำอะไร หากเบราว์เซอร์ปฏิเสธการลบข้อมูล
+      }
+
+      showLoginScreen();
+      showToast('ออกจากระบบในเบราว์เซอร์แล้ว', 'success');
+    }
+
+    /* =========================================================
+       NAVIGATION
+       ========================================================= */
+
+    async function navigateTo(page) {
+      if (!PAGE_INFO[page]) {
+        return;
+      }
+
+      state.currentPage = page;
+
+      document.querySelectorAll('.nav-button').forEach(function (button) {
+        button.classList.toggle(
+          'active',
+          button.dataset.page === page
+        );
+      });
+
+      document.querySelectorAll('.page-view').forEach(function (view) {
+        view.classList.toggle(
+          'active',
+          view.id === 'page-' + page
+        );
+      });
+
+      byId('pageTitle').textContent = PAGE_INFO[page].title;
+      byId('pageSubtitle').textContent = PAGE_INFO[page].subtitle;
+
+      closeMobileMenu();
+
+      if (page === 'dashboard') {
+        await loadDashboard();
+      } else if (page === 'users') {
+        await loadUsers();
+      } else if (page === 'reports') {
+        await loadReports();
+      } else if (page === 'messages') {
+        await loadMessages();
+      } else if (page === 'audit') {
+        await loadAuditLogs();
+      } else if (page === 'system') {
+        renderAdminIdentity();
+        await checkHealth();
+      }
+    }
+
+    function closeMobileMenu() {
+      byId('sidebar').classList.remove('open');
+      byId('mobileOverlay').classList.remove('show');
+    }
+
+    function openMobileMenu() {
+      byId('sidebar').classList.add('open');
+      byId('mobileOverlay').classList.add('show');
+    }
+
+    async function refreshCurrentPage() {
+      await navigateTo(state.currentPage);
+      showToast('รีเฟรชข้อมูลแล้ว', 'success');
+    }
+
+    /* =========================================================
+       DASHBOARD
+       ========================================================= */
+
+    async function loadDashboard() {
+      byId('connectionStatus').textContent =
+        'กำลังโหลดข้อมูลจาก API...';
+
+      try {
+        const result = await apiRequest('adminDashboard', {});
+        const stats = result.stats || {};
+
+        byId('statTotalUsers').textContent =
+          formatNumber(stats.totalUsers);
+
+        byId('statActiveUsers').textContent =
+          formatNumber(stats.activeUsers);
+
+        byId('statSuspendedUsers').textContent =
+          formatNumber(stats.suspendedUsers);
+
+        byId('statTotalMessages').textContent =
+          formatNumber(stats.totalMessages);
+
+        byId('statActiveMessages').textContent =
+          formatNumber(stats.activeMessages);
+
+        byId('statTotalStories').textContent =
+          formatNumber(stats.totalStories);
+
+        byId('statActiveStories').textContent =
+          formatNumber(stats.activeStories);
+
+        byId('statPendingReports').textContent =
+          formatNumber(stats.pendingReports);
+
+        byId('connectionStatus').textContent =
+          'เชื่อมต่อ API สำเร็จ และได้รับข้อมูลภาพรวมจากเซิร์ฟเวอร์แล้ว';
+
+        byId('connectionStatus').style.background = '#dcfce7';
+        byId('connectionStatus').style.color = '#166534';
+        byId('connectionStatus').style.borderColor = '#bbf7d0';
+      } catch (error) {
+        byId('connectionStatus').textContent =
+          'โหลดข้อมูลไม่สำเร็จ: ' + error.message;
+
+        byId('connectionStatus').style.background = '#fee2e2';
+        byId('connectionStatus').style.color = '#991b1b';
+        byId('connectionStatus').style.borderColor = '#fecaca';
+
+        showToast(error.message, 'error');
+      }
+    }
+
+    /* =========================================================
+       PAGINATION
+       ========================================================= */
+
+    function renderPagination(
+      containerId,
+      currentPage,
+      totalPages,
+      total,
+      onChange
+    ) {
+      const container = byId(containerId);
+
+      if (!container) {
+        return;
+      }
+
+      const pages = Math.max(1, Number(totalPages || 1));
+      const current = Math.min(
+        pages,
+        Math.max(1, Number(currentPage || 1))
+      );
+
+      container.innerHTML =
+        '<div class="muted small">จำนวน ' +
+        formatNumber(total) +
+        ' รายการ · หน้า ' +
+        current +
+        ' / ' +
+        pages +
+        '</div>' +
+        '<div class="pagination-controls">' +
+          '<button class="button button-secondary button-small" ' +
+            'data-page-action="previous" ' +
+            (current <= 1 ? 'disabled' : '') +
+            '>ก่อนหน้า</button>' +
+          '<button class="button button-secondary button-small" ' +
+            'data-page-action="next" ' +
+            (current >= pages ? 'disabled' : '') +
+            '>ถัดไป</button>' +
+        '</div>';
+
+      const previous = container.querySelector(
+        '[data-page-action="previous"]'
+      );
+
+      const next = container.querySelector(
+        '[data-page-action="next"]'
+      );
+
+      previous.addEventListener('click', function () {
+        if (current > 1) {
+          onChange(current - 1);
+        }
+      });
+
+      next.addEventListener('click', function () {
+        if (current < pages) {
+          onChange(current + 1);
+        }
+      });
+    }
+
+    /* =========================================================
+       USER MANAGEMENT
+       API:
+       adminListUsers
+       adminSetUserStatus
+       adminRevokeUserSessions
+       ========================================================= */
+
+    async function loadUsers() {
+      showLoading('usersTableContainer', 'กำลังโหลดผู้ใช้...');
+
+      try {
+        const result = await apiRequest('adminListUsers', {
+          page: state.usersPage,
+          pageSize: CONFIG.DEFAULT_PAGE_SIZE,
+          search: byId('usersSearch').value.trim(),
+          status: byId('usersStatus').value
+        });
+
+        const items = result.items || [];
+        const pagination = result.pagination || {};
+
+        state.usersTotalPages = Math.max(
+          1,
+          Number(pagination.totalPages || 1)
+        );
+
+        renderUsersTable(items);
+
+        renderPagination(
+          'usersPagination',
+          state.usersPage,
+          state.usersTotalPages,
+          pagination.total || 0,
+          function (page) {
+            state.usersPage = page;
+            loadUsers();
+          }
+        );
+      } catch (error) {
+        renderEmpty(
+          'usersTableContainer',
+          'โหลดรายชื่อผู้ใช้ไม่สำเร็จ',
+          error.message
+        );
+
+        byId('usersPagination').innerHTML = '';
+      }
+    }
+
+    function renderUsersTable(items) {
+      const container = byId('usersTableContainer');
+
+      if (!items.length) {
+        renderEmpty(
+          'usersTableContainer',
+          'ไม่พบผู้ใช้',
+          'ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ'
+        );
+        return;
+      }
+
+      const rows = items.map(function (user) {
+        const id = escapeHtml(user.userId || '');
+        const role = String(user.role || 'user');
+        const status = String(user.status || '');
+
+        let actionButtons = '';
+
+        if (role === 'admin') {
+          actionButtons =
+            '<span class="muted small">บัญชีผู้ดูแลที่ได้รับการป้องกัน</span>';
+        } else if (status === 'active') {
+          actionButtons =
+            '<div class="button-group">' +
+              '<button class="button button-danger button-small" ' +
+                'data-user-action="suspend" data-user-id="' + id + '">' +
+                '<i class="fa-solid fa-ban"></i> ระงับบัญชี' +
+              '</button>' +
+              '<button class="button button-secondary button-small" ' +
+                'data-user-action="revoke" data-user-id="' + id + '">' +
+                '<i class="fa-solid fa-right-from-bracket"></i> เพิกถอนเซสชัน' +
+              '</button>' +
+            '</div>';
+        } else {
+          actionButtons =
+            '<div class="button-group">' +
+              '<button class="button button-success button-small" ' +
+                'data-user-action="activate" data-user-id="' + id + '">' +
+                '<i class="fa-solid fa-user-check"></i> เปิดใช้งาน' +
+              '</button>' +
+              '<button class="button button-secondary button-small" ' +
+                'data-user-action="revoke" data-user-id="' + id + '">' +
+                '<i class="fa-solid fa-right-from-bracket"></i> เพิกถอนเซสชัน' +
+              '</button>' +
+            '</div>';
         }
 
-        function switchAdminView(viewName, element) {
-            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
-            document.querySelectorAll('aside .sidebar-item').forEach(item => item.classList.remove('active'));
-            
-            const target = document.getElementById(`admin-view-${viewName}`);
-            if (target) target.classList.remove('hidden');
-            if (element) element.classList.add('active');
+        return '<tr>' +
+          '<td>' +
+            '<div class="table-primary">' +
+              escapeHtml(user.displayName || '-') +
+            '</div>' +
+            '<div class="table-secondary">' +
+              escapeHtml(user.username || '-') +
+            '</div>' +
+            '<div class="table-secondary">' +
+              escapeHtml(user.userId || '') +
+            '</div>' +
+          '</td>' +
+          '<td>' + escapeHtml(user.email || '-') + '</td>' +
+          '<td>' + statusBadge(role) + '</td>' +
+          '<td>' + statusBadge(status) + '</td>' +
+          '<td>' + formatNumber(user.messageCount) + '</td>' +
+          '<td>' + escapeHtml(formatDate(user.createdAt)) + '</td>' +
+          '<td>' + escapeHtml(formatDate(user.lastLoginAt)) + '</td>' +
+          '<td>' + actionButtons + '</td>' +
+        '</tr>';
+      }).join('');
 
-            if (viewName === 'dashboard') fetchAdminDashboard();
-            if (viewName === 'database') checkDatabaseStatus();
+      container.innerHTML =
+        '<table>' +
+          '<thead><tr>' +
+            '<th>ข้อมูลผู้ใช้</th>' +
+            '<th>อีเมล</th>' +
+            '<th>บทบาท</th>' +
+            '<th>สถานะ</th>' +
+            '<th>ข้อความ</th>' +
+            '<th>สมัครเมื่อ</th>' +
+            '<th>เข้าสู่ระบบล่าสุด</th>' +
+            '<th>การดำเนินการ</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>';
+    }
+
+    async function handleUserAction(action, userId) {
+      const user = String(userId || '');
+
+      if (!user) {
+        showToast('ไม่พบ User ID', 'error');
+        return;
+      }
+
+      if (action === 'suspend' || action === 'activate') {
+        const suspended = action === 'suspend';
+
+        const answer = await Swal.fire({
+          icon: suspended ? 'warning' : 'question',
+          title: suspended ? 'ยืนยันการระงับบัญชี?' : 'เปิดใช้งานบัญชี?',
+          text: suspended
+            ? 'บัญชีนี้จะถูกระงับและเซสชันของผู้ใช้จะถูกเพิกถอน'
+            : 'บัญชีนี้จะได้รับอนุญาตให้ใช้งานอีกครั้ง',
+          input: suspended ? 'textarea' : undefined,
+          inputLabel: suspended ? 'หมายเหตุ (ถ้ามี)' : undefined,
+          inputPlaceholder: suspended
+            ? 'ระบุหมายเหตุสำหรับบันทึกภายใน'
+            : undefined,
+          showCancelButton: true,
+          confirmButtonText: suspended ? 'ระงับบัญชี' : 'เปิดใช้งาน',
+          cancelButtonText: 'ยกเลิก',
+          confirmButtonColor: suspended ? '#b91c1c' : '#15803d'
+        });
+
+        if (!answer.isConfirmed) {
+          return;
         }
 
-        async function callAdminApi(action, payload = {}) {
-            try {
-                const response = await fetch(CONFIG.API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action, sessionToken: adminState.sessionToken, ...payload })
-                });
-                return await response.json();
-            } catch (err) {
-                showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ API', 'error');
-                return null;
-            }
+        try {
+          await apiRequest('adminSetUserStatus', {
+            userId: user,
+            status: suspended ? 'suspended' : 'active'
+          });
+
+          showToast(
+            suspended
+              ? 'ระงับบัญชีสำเร็จ'
+              : 'เปิดใช้งานบัญชีสำเร็จ',
+            'success'
+          );
+
+          await loadUsers();
+          await loadDashboard();
+        } catch (error) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'ดำเนินการไม่สำเร็จ',
+            text: error.message
+          });
         }
 
-        async function verifyAdminLogin() {
-            const token = document.getElementById('admin-token-input').value;
-            if (!token) {
-                showToast('กรุณากรอก Session Token', 'warning');
-                return;
-            }
-            adminState.sessionToken = token;
-            localStorage.setItem('adminSessionToken', token);
-            verifyAdminLoginToken();
+        return;
+      }
+
+      if (action === 'revoke') {
+        const answer = await Swal.fire({
+          icon: 'warning',
+          title: 'เพิกถอนเซสชันของผู้ใช้?',
+          text: 'ผู้ใช้จะต้องเข้าสู่ระบบใหม่หากเซสชันที่ใช้งานอยู่ถูกเพิกถอน',
+          showCancelButton: true,
+          confirmButtonText: 'เพิกถอนเซสชัน',
+          cancelButtonText: 'ยกเลิก',
+          confirmButtonColor: '#b91c1c'
+        });
+
+        if (!answer.isConfirmed) {
+          return;
         }
 
-        async function verifyAdminLoginToken() {
-            showLoading('กำลังตรวจสอบสิทธิ์ผู้ดูแล...');
-            const res = await callAdminApi('getAdminDashboard');
-            hideLoading();
+        try {
+          const result = await apiRequest(
+            'adminRevokeUserSessions',
+            { userId: user }
+          );
 
-            if (res && res.success) {
-                document.getElementById('admin-login-screen').classList.add('hidden');
-                document.getElementById('admin-main-layout').classList.remove('hidden');
-                fetchAdminDashboard();
-                showToast('เข้าสู่ระบบผู้ดูแลสำเร็จ', 'success');
-            } else {
-                showToast('สิทธิ์ผู้ดูแลไม่ถูกต้องหรือหมดอายุ', 'error');
-                adminLogout();
-            }
+          await Swal.fire({
+            icon: 'success',
+            title: 'เพิกถอนเซสชันสำเร็จ',
+            text: 'จำนวนเซสชันที่เพิกถอน: ' +
+              formatNumber(result.revokedSessions)
+          });
+
+          await loadUsers();
+        } catch (error) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'เพิกถอนเซสชันไม่สำเร็จ',
+            text: error.message
+          });
+        }
+      }
+    }
+
+    /* =========================================================
+       REPORT MANAGEMENT
+       API:
+       adminListReports
+       adminResolveReport
+       ========================================================= */
+
+    async function loadReports() {
+      showLoading('reportsTableContainer', 'กำลังโหลดรายงาน...');
+
+      try {
+        const result = await apiRequest('adminListReports', {
+          page: state.reportsPage,
+          pageSize: CONFIG.DEFAULT_PAGE_SIZE,
+          status: byId('reportsStatus').value
+        });
+
+        const items = result.items || [];
+        const pagination = result.pagination || {};
+
+        state.reportsTotalPages = Math.max(
+          1,
+          Number(pagination.totalPages || 1)
+        );
+
+        renderReportsTable(items);
+
+        renderPagination(
+          'reportsPagination',
+          state.reportsPage,
+          state.reportsTotalPages,
+          pagination.total || 0,
+          function (page) {
+            state.reportsPage = page;
+            loadReports();
+          }
+        );
+      } catch (error) {
+        renderEmpty(
+          'reportsTableContainer',
+          'โหลดรายงานไม่สำเร็จ',
+          error.message
+        );
+
+        byId('reportsPagination').innerHTML = '';
+      }
+    }
+
+    function renderReportsTable(items) {
+      const container = byId('reportsTableContainer');
+
+      if (!items.length) {
+        renderEmpty(
+          'reportsTableContainer',
+          'ไม่พบรายงาน',
+          'ไม่มีรายการที่ตรงกับตัวกรองปัจจุบัน'
+        );
+        return;
+      }
+
+      const rows = items.map(function (report) {
+        const id = escapeHtml(report.reportId || '');
+        const status = String(report.status || '');
+
+        let actions = '';
+
+        if (status === 'pending') {
+          actions =
+            '<div class="button-group">' +
+              '<button class="button button-success button-small" ' +
+                'data-report-action="resolved" data-report-id="' + id + '">' +
+                '<i class="fa-solid fa-check"></i> ดำเนินการแล้ว' +
+              '</button>' +
+              '<button class="button button-secondary button-small" ' +
+                'data-report-action="dismissed" data-report-id="' + id + '">' +
+                '<i class="fa-solid fa-xmark"></i> ยกเลิก' +
+              '</button>' +
+            '</div>';
+        } else {
+          actions =
+            '<button class="button button-secondary button-small" ' +
+              'data-report-action="review" data-report-id="' + id + '">' +
+              '<i class="fa-solid fa-eye"></i> ดูรายละเอียด' +
+            '</button>';
         }
 
-        function adminLogout() {
-            adminState.sessionToken = null;
-            localStorage.removeItem('adminSessionToken');
-            document.getElementById('admin-main-layout').classList.add('hidden');
-            document.getElementById('admin-login-screen').classList.remove('hidden');
-            showToast('ออกจากระบบผู้ดูแลแล้ว', 'info');
+        return '<tr>' +
+          '<td>' +
+            '<div class="table-primary">' + id + '</div>' +
+            '<div class="table-secondary">' +
+              escapeHtml(formatDate(report.createdAt)) +
+            '</div>' +
+          '</td>' +
+          '<td>' + escapeHtml(report.reason || '-') + '</td>' +
+          '<td>' +
+            '<div class="table-secondary">ผู้รายงาน</div>' +
+            escapeHtml(report.reporterUserId || '-') +
+            '<div class="table-secondary" style="margin-top:6px">เป้าหมาย</div>' +
+            escapeHtml(report.targetUserId || '-') +
+          '</td>' +
+          '<td>' + escapeHtml(report.messageId || '-') + '</td>' +
+          '<td>' + statusBadge(status) + '</td>' +
+          '<td>' + actions + '</td>' +
+        '</tr>';
+      }).join('');
+
+      container.innerHTML =
+        '<table>' +
+          '<thead><tr>' +
+            '<th>รหัสรายงาน</th>' +
+            '<th>เหตุผล</th>' +
+            '<th>ผู้เกี่ยวข้อง</th>' +
+            '<th>Message ID</th>' +
+            '<th>สถานะ</th>' +
+            '<th>การดำเนินการ</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>';
+    }
+
+    async function handleReportAction(action, reportId) {
+      const report = String(reportId || '');
+
+      if (!report) {
+        showToast('ไม่พบ Report ID', 'error');
+        return;
+      }
+
+      if (action === 'review') {
+        await showReportDetails(report);
+        return;
+      }
+
+      let resolution = '';
+
+      if (action === 'resolved' || action === 'dismissed') {
+        const answer = await Swal.fire({
+          icon: action === 'resolved' ? 'question' : 'warning',
+          title: action === 'resolved'
+            ? 'บันทึกว่าดำเนินการแล้ว?'
+            : 'ยกเลิกรายงานนี้?',
+          input: 'textarea',
+          inputLabel: 'ผลการพิจารณา',
+          inputPlaceholder: 'ระบุรายละเอียดการตรวจสอบ',
+          inputAttributes: {
+            maxlength: 1000
+          },
+          showCancelButton: true,
+          confirmButtonText: 'บันทึกผล',
+          cancelButtonText: 'ยกเลิก'
+        });
+
+        if (!answer.isConfirmed) {
+          return;
         }
 
-        async function fetchAdminDashboard() {
-            const res = await callAdminApi('getAdminDashboard');
-            if (res && res.success) {
-                document.getElementById('stat-total-users').innerText = res.data.totalUsers || 0;
-                document.getElementById('stat-total-messages').innerText = res.data.totalMessages || 0;
-                document.getElementById('stat-total-reports').innerText = res.data.totalReports || 0;
-            }
+        resolution = String(answer.value || '');
+      } else {
+        return;
+      }
+
+      try {
+        await apiRequest('adminResolveReport', {
+          reportId: report,
+          status: action,
+          resolution: resolution
+        });
+
+        showToast('บันทึกผลการพิจารณาแล้ว', 'success');
+
+        await loadReports();
+        await loadDashboard();
+      } catch (error) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'บันทึกผลไม่สำเร็จ',
+          text: error.message
+        });
+      }
+    }
+
+    async function showReportDetails(reportId) {
+      try {
+        const result = await apiRequest('adminListReports', {
+          page: 1,
+          pageSize: 100,
+          status: ''
+        });
+
+        const report = (result.items || []).find(function (item) {
+          return String(item.reportId) === String(reportId);
+        });
+
+        if (!report) {
+          throw new Error(
+            'ไม่พบรายงานในรายการที่ API ส่งกลับมา'
+          );
         }
 
-        async function checkDatabaseStatus() {
-            showLoading('กำลังตรวจสอบสถานะฐานข้อมูล...');
-            const res = await callAdminApi('getDatabaseStatus');
-            hideLoading();
+        await Swal.fire({
+          title: 'รายละเอียดรายงาน',
+          width: 720,
+          confirmButtonText: 'ปิด',
+          html:
+            '<div style="text-align:left">' +
+              '<p><b>Report ID:</b> ' +
+                escapeHtml(report.reportId) + '</p>' +
+              '<p><b>เหตุผล:</b> ' +
+                escapeHtml(report.reason || '-') + '</p>' +
+              '<p><b>รายละเอียด:</b></p>' +
+              '<div class="content-box">' +
+                escapeHtml(report.details || 'ไม่มีรายละเอียดเพิ่มเติม') +
+              '</div>' +
+              '<p><b>Message ID:</b> ' +
+                escapeHtml(report.messageId || '-') + '</p>' +
+              '<p><b>Target User ID:</b> ' +
+                escapeHtml(report.targetUserId || '-') + '</p>' +
+              '<p><b>สถานะ:</b> ' +
+                escapeHtml(report.status || '-') + '</p>' +
+              '<p><b>ผลการพิจารณา:</b></p>' +
+              '<div class="content-box">' +
+                escapeHtml(report.resolution || '-') +
+              '</div>' +
+            '</div>'
+        });
+      } catch (error) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'โหลดรายละเอียดไม่สำเร็จ',
+          text: error.message
+        });
+      }
+    }
 
-            const container = document.getElementById('db-status-container');
-            if (res && res.success) {
-                let html = '<table><thead><tr><th>ชีต (Sheet)</th><th>สถานะ</th></tr></thead><tbody>';
-                for (const [sheet, status] of Object.entries(res.data)) {
-                    html += `<tr><td>${sheet}</td><td>${status}</td></tr>`;
-                }
-                html += '</tbody></table>';
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<p style="color: var(--danger);">ไม่สามารถดึงสถานะฐานข้อมูลได้</p>';
-            }
+    /* =========================================================
+       MESSAGE REVIEW
+       API: adminListMessages
+       Code.gs ปัจจุบันไม่มี API ลบ/ซ่อนข้อความสำหรับแอดมิน
+       หน้านี้จึงเป็นการตรวจสอบข้อมูลเท่านั้น
+       ========================================================= */
+
+    async function loadMessages() {
+      showLoading('messagesTableContainer', 'กำลังโหลดข้อความ...');
+
+      try {
+        const result = await apiRequest('adminListMessages', {
+          page: state.messagesPage,
+          pageSize: CONFIG.DEFAULT_PAGE_SIZE,
+          status: byId('messagesStatus').value
+        });
+
+        const items = result.items || [];
+        const pagination = result.pagination || {};
+
+        state.messagesTotalPages = Math.max(
+          1,
+          Number(pagination.totalPages || 1)
+        );
+
+        renderMessagesTable(items);
+
+        renderPagination(
+          'messagesPagination',
+          state.messagesPage,
+          state.messagesTotalPages,
+          pagination.total || 0,
+          function (page) {
+            state.messagesPage = page;
+            loadMessages();
+          }
+        );
+      } catch (error) {
+        renderEmpty(
+          'messagesTableContainer',
+          'โหลดข้อความไม่สำเร็จ',
+          error.message
+        );
+
+        byId('messagesPagination').innerHTML = '';
+      }
+    }
+
+    function renderMessagesTable(items) {
+      const container = byId('messagesTableContainer');
+
+      if (!items.length) {
+        renderEmpty(
+          'messagesTableContainer',
+          'ไม่พบข้อความ',
+          'ไม่มีรายการที่ตรงกับตัวกรองปัจจุบัน'
+        );
+        return;
+      }
+
+      const rows = items.map(function (message) {
+        const mediaUrl = safeUrl(message.mediaUrl);
+
+        const media = mediaUrl
+          ? '<a href="' + escapeHtml(mediaUrl) +
+              '" target="_blank" rel="noopener noreferrer">' +
+              'เปิดไฟล์แนบ</a>' +
+              '<img class="media-preview" src="' +
+              escapeHtml(mediaUrl) +
+              '" alt="ไฟล์แนบของข้อความ" loading="lazy">'
+          : '<span class="muted">ไม่มีไฟล์แนบ</span>';
+
+        return '<tr>' +
+          '<td>' +
+            '<div class="table-primary">' +
+              escapeHtml(message.messageId || '-') +
+            '</div>' +
+            '<div class="table-secondary">' +
+              escapeHtml(formatDate(message.createdAt)) +
+            '</div>' +
+          '</td>' +
+          '<td>' +
+            '<div class="table-secondary">ผู้รับ User ID</div>' +
+            escapeHtml(message.recipientUserId || '-') +
+          '</td>' +
+          '<td>' +
+            '<div class="content-box message-preview">' +
+              escapeHtml(message.messageText || '(ไม่มีข้อความ)') +
+            '</div>' +
+          '</td>' +
+          '<td>' + media + '</td>' +
+          '<td>' + statusBadge(message.status || '') + '</td>' +
+          '<td>' + formatNumber(message.reportedCount) + '</td>' +
+          '<td>' + escapeHtml(formatDate(message.readAt)) + '</td>' +
+        '</tr>';
+      }).join('');
+
+      container.innerHTML =
+        '<table>' +
+          '<thead><tr>' +
+            '<th>ข้อความ</th>' +
+            '<th>ผู้รับ</th>' +
+            '<th>เนื้อหา</th>' +
+            '<th>ไฟล์แนบ</th>' +
+            '<th>สถานะ</th>' +
+            '<th>จำนวนรายงาน</th>' +
+            '<th>อ่านเมื่อ</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>';
+    }
+
+    /* =========================================================
+       AUDIT LOGS
+       API: adminAuditLogs
+       ========================================================= */
+
+    async function loadAuditLogs() {
+      showLoading('auditTableContainer', 'กำลังโหลดประวัติ...');
+
+      try {
+        const result = await apiRequest('adminAuditLogs', {
+          page: state.auditPage,
+          pageSize: CONFIG.DEFAULT_PAGE_SIZE
+        });
+
+        const items = result.items || [];
+        const pagination = result.pagination || {};
+
+        state.auditTotalPages = Math.max(
+          1,
+          Number(pagination.totalPages || 1)
+        );
+
+        renderAuditTable(items);
+
+        renderPagination(
+          'auditPagination',
+          state.auditPage,
+          state.auditTotalPages,
+          pagination.total || 0,
+          function (page) {
+            state.auditPage = page;
+            loadAuditLogs();
+          }
+        );
+      } catch (error) {
+        renderEmpty(
+          'auditTableContainer',
+          'โหลดประวัติไม่สำเร็จ',
+          error.message
+        );
+
+        byId('auditPagination').innerHTML = '';
+      }
+    }
+
+    function renderAuditTable(items) {
+      const container = byId('auditTableContainer');
+
+      if (!items.length) {
+        renderEmpty(
+          'auditTableContainer',
+          'ยังไม่มีประวัติ',
+          'ระบบอาจยังไม่มีเหตุการณ์ที่ถูกบันทึก'
+        );
+        return;
+      }
+
+      const rows = items.map(function (log) {
+        return '<tr>' +
+          '<td>' + escapeHtml(formatDate(log.createdAt)) + '</td>' +
+          '<td>' + escapeHtml(log.actorEmail || '-') + '</td>' +
+          '<td>' + escapeHtml(log.action || '-') + '</td>' +
+          '<td>' + escapeHtml(log.targetType || '-') + '</td>' +
+          '<td>' + escapeHtml(log.targetId || '-') + '</td>' +
+          '<td>' +
+            '<div class="content-box">' +
+              escapeHtml(log.details || '-') +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+
+      container.innerHTML =
+        '<table>' +
+          '<thead><tr>' +
+            '<th>เวลา</th>' +
+            '<th>ผู้ดำเนินการ</th>' +
+            '<th>เหตุการณ์</th>' +
+            '<th>ประเภทเป้าหมาย</th>' +
+            '<th>Target ID</th>' +
+            '<th>รายละเอียด</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>';
+    }
+
+    /* =========================================================
+       API HEALTH CHECK
+       ========================================================= */
+
+    async function checkHealth() {
+      byId('systemApiStatus').textContent = 'กำลังตรวจสอบ...';
+
+      try {
+        /*
+         * Worker รองรับ GET สำหรับตรวจสอบ health
+         * GET จะส่งต่อไปยัง Code.gs doGet()
+         */
+        const url = getApiUrl();
+        const response = await fetch(url, {
+          method: 'GET',
+          redirect: 'follow',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
         }
 
-        async function runDatabaseSetup() {
-            showLoading('กำลังตั้งค่าฐานข้อมูล...');
-            const res = await callAdminApi('setupDatabase');
-            hideLoading();
-            if (res && res.success) {
-                showToast('ตั้งค่าฐานข้อมูลสำเร็จ', 'success');
-                checkDatabaseStatus();
-            } else {
-                showToast('เกิดข้อผิดพลาดในการตั้งค่าฐานข้อมูล', 'error');
-            }
+        const result = await response.json();
+
+        if (!result || !result.ok) {
+          throw new Error(
+            result && result.message
+              ? result.message
+              : 'API health check ไม่สำเร็จ'
+          );
         }
 
-        async function runDatabaseRepair() {
-            showLoading('กำลังซ่อมแซมฐานข้อมูล...');
-            const res = await callAdminApi('repairDatabase');
-            hideLoading();
-            if (res && res.success) {
-                showToast('ซ่อมแซมฐานข้อมูลสำเร็จ', 'success');
-                checkDatabaseStatus();
-            } else {
-                showToast('เกิดข้อผิดพลาดในการซ่อมแซม', 'error');
-            }
+        byId('systemApiStatus').textContent =
+          'ออนไลน์ · ' + (result.version || 'ไม่ระบุเวอร์ชัน');
+
+        showToast('API ออนไลน์', 'success');
+      } catch (error) {
+        byId('systemApiStatus').textContent =
+          'ตรวจสอบไม่สำเร็จ: ' + error.message;
+
+        showToast(error.message, 'error');
+      }
+    }
+
+    /* =========================================================
+       EVENT LISTENERS
+       ========================================================= */
+
+    function bindEvents() {
+      document.querySelectorAll('.nav-button').forEach(function (button) {
+        button.addEventListener('click', function () {
+          navigateTo(button.dataset.page);
+        });
+      });
+
+      byId('logoutButton').addEventListener('click', logout);
+
+      byId('refreshButton').addEventListener(
+        'click',
+        refreshCurrentPage
+      );
+
+      byId('mobileMenuButton').addEventListener(
+        'click',
+        openMobileMenu
+      );
+
+      byId('mobileOverlay').addEventListener(
+        'click',
+        closeMobileMenu
+      );
+
+      byId('usersFilterForm').addEventListener(
+        'submit',
+        function (event) {
+          event.preventDefault();
+          state.usersPage = 1;
+          loadUsers();
         }
-    </script>
+      );
+
+      byId('usersResetButton').addEventListener(
+        'click',
+        function () {
+          byId('usersSearch').value = '';
+          byId('usersStatus').value = '';
+          state.usersPage = 1;
+          loadUsers();
+        }
+      );
+
+      byId('reportsFilterForm').addEventListener(
+        'submit',
+        function (event) {
+          event.preventDefault();
+          state.reportsPage = 1;
+          loadReports();
+        }
+      );
+
+      byId('messagesFilterForm').addEventListener(
+        'submit',
+        function (event) {
+          event.preventDefault();
+          state.messagesPage = 1;
+          loadMessages();
+        }
+      );
+
+      byId('systemHealthButton').addEventListener(
+        'click',
+        checkHealth
+      );
+
+      /*
+       * Event delegation สำหรับปุ่มในตารางผู้ใช้
+       */
+      byId('usersTableContainer').addEventListener(
+        'click',
+        function (event) {
+          const button = event.target.closest('[data-user-action]');
+
+          if (!button) {
+            return;
+          }
+
+          handleUserAction(
+            button.dataset.userAction,
+            button.dataset.userId
+          );
+        }
+      );
+
+      /*
+       * Event delegation สำหรับปุ่มรายงาน
+       */
+      byId('reportsTableContainer').addEventListener(
+        'click',
+        function (event) {
+          const button = event.target.closest('[data-report-action]');
+
+          if (!button) {
+            return;
+          }
+
+          handleReportAction(
+            button.dataset.reportAction,
+            button.dataset.reportId
+          );
+        }
+      );
+
+      window.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+          closeMobileMenu();
+        }
+      });
+    }
+
+    /* =========================================================
+       START APPLICATION
+       ========================================================= */
+
+    async function startApplication() {
+      bindEvents();
+
+      try {
+        /*
+         * ตรวจสอบก่อนว่ามีการกำหนด Worker URL แล้ว
+         */
+        getApiUrl();
+        byId('systemApiUrl').textContent = CONFIG.API_BASE_URL;
+      } catch (error) {
+        showLoginMessage(error.message);
+      }
+
+      initializeGoogleSignIn();
+
+      /*
+       * รอให้ Google Identity Services โหลดเสร็จ
+       * และตรวจสอบ session เดิมหากมี
+       */
+      await restoreSession();
+    }
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      startApplication
+    );
+  </script>
 </body>
-</html>
+            </html>
