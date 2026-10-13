@@ -1,23 +1,21 @@
-"use strict";
+'use strict';
 
-/**
- * ================================================================
- * ActiGallery — Firebase Cloud Functions Backend
- * ================================================================
+/* ============================================================================
+ * ActiGallery - Firebase Cloud Functions Backend
+ * File: functions/index.js
+ * Version: 3.0.0
  *
- * Runtime:
- *   Node.js 20
- *   Firebase Cloud Functions v2
- *
- * Services:
- *   Firebase Authentication
- *   Cloud Firestore
- *   ImgBB Image Hosting API
+ * Platform:
+ *   - Firebase Cloud Functions v2
+ *   - Firebase Authentication
+ *   - Cloud Firestore
+ *   - ImgBB Image Hosting
+ *   - Node.js 20
  *
  * Region:
  *   asia-southeast1
  *
- * Required Firebase Secrets:
+ * Required Secret Manager secrets:
  *   IMGBB_API_KEY
  *   BOOTSTRAP_KEY
  *
@@ -28,2069 +26,2777 @@
  *   albums
  *   photos
  *
- * Callable functions:
- *   dashboardApi
- *   uploadImage
- *   bootstrapAdmin
+ * Roles:
+ *   admin
+ *   album_manager
  *
- * IMPORTANT:
- *   - Never place secrets in frontend HTML.
- *   - Never trust a role sent by the client.
- *   - Every privileged operation checks Firestore user profile.
- *   - Album managers are restricted to their organization.
- *   - Bootstrap requires a secret and is disabled after an admin
- *     account has already been created.
- * ================================================================
- */
+ * Important:
+ *   - This backend never stores user passwords in Firestore.
+ *   - User passwords are managed by Firebase Authentication.
+ *   - All management operations require Firebase Authentication.
+ *   - Album managers can only manage their own organization's content.
+ *   - Image uploads use ImgBB.
+ *   - Albums are published after the requested save/upload workflow
+ *     completes successfully.
+ * ========================================================================== */
 
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { defineSecret } = require("firebase-functions/params");
-const logger = require("firebase-functions/logger");
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
+const logger = require('firebase-functions/logger');
+const admin = require('firebase-admin');
+const crypto = require('node:crypto');
 
-const admin = require("firebase-admin");
-const crypto = require("node:crypto");
-
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+admin.initializeApp();
 
 const db = admin.firestore();
 const auth = admin.auth();
 const FieldValue = admin.firestore.FieldValue;
-const Timestamp = admin.firestore.Timestamp;
 
-const REGION = "asia-southeast1";
-const APP_NAME = "ActiGallery";
-const APP_VERSION = "1.0.0";
+const IMGBB_API_KEY = defineSecret('IMGBB_API_KEY');
+const BOOTSTRAP_KEY = defineSecret('BOOTSTRAP_KEY');
 
-const IMGBB_API_KEY = defineSecret("IMGBB_API_KEY");
-const BOOTSTRAP_KEY = defineSecret("BOOTSTRAP_KEY");
+const REGION = 'asia-southeast1';
 
-const IMG_BB_UPLOAD_ENDPOINT = "https://api.imgbb.com/1/upload";
-const INTERNAL_AUTH_DOMAIN = "users.actigallery.app";
+const CONFIG = Object.freeze({
+  APP_NAME: 'ActiGallery',
+  VERSION: '3.0.0',
+  REGION,
 
-const MAX_IMAGE_BYTES = 7 * 1024 * 1024;
-const MAX_BASE64_LENGTH = Math.ceil(MAX_IMAGE_BYTES * 4 / 3) + 16;
-const MAX_TITLE_LENGTH = 160;
-const MAX_DESCRIPTION_LENGTH = 5000;
-const MAX_NAME_LENGTH = 180;
-const MAX_CATEGORY_LENGTH = 100;
-const MAX_USERNAME_LENGTH = 64;
-const MAX_PASSWORD_LENGTH = 128;
-const MAX_PHOTOS_PER_ALBUM = 2000;
-const MAX_BATCH_OPERATIONS = 400;
-const MAX_DASHBOARD_ALBUMS = 2000;
-const MAX_DASHBOARD_USERS = 2000;
-const MAX_DASHBOARD_ORGANIZATIONS = 1000;
-const MAX_DASHBOARD_CATEGORIES = 1000;
+  COLLECTIONS: Object.freeze({
+    USERS: 'users',
+    ORGANIZATIONS: 'organizations',
+    CATEGORIES: 'categories',
+    ALBUMS: 'albums',
+    PHOTOS: 'photos'
+  }),
 
-const ROLE_ADMIN = "admin";
-const ROLE_ALBUM_MANAGER = "album_manager";
+  ROLES: Object.freeze({
+    ADMIN: 'admin',
+    ALBUM_MANAGER: 'album_manager'
+  }),
 
-const ALBUM_STATUS_DRAFT = "draft";
-const ALBUM_STATUS_PUBLISHED = "published";
+  USER_STATUS: Object.freeze({
+    ACTIVE: 'active',
+    DISABLED: 'disabled'
+  }),
 
-const COLLECTIONS = Object.freeze({
-  USERS: "users",
-  ORGANIZATIONS: "organizations",
-  CATEGORIES: "categories",
-  ALBUMS: "albums",
-  PHOTOS: "photos"
+  ALBUM_STATUS: Object.freeze({
+    DRAFT: 'draft',
+    PUBLISHED: 'published',
+    PRIVATE: 'private'
+  }),
+
+  PHOTO_STATUS: Object.freeze({
+    READY: 'ready',
+    DELETED: 'deleted'
+  }),
+
+  IMAGE: Object.freeze({
+    MAX_BYTES: 7 * 1024 * 1024,
+    ALLOWED_MIME_TYPES: [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif'
+    ],
+    IMGBB_TIMEOUT_MS: 60000
+  }),
+
+  USERNAME_EMAIL_DOMAIN: 'users.actigallery.app',
+
+  MAX_BATCH_OPERATIONS: 400,
+  MAX_LIST_LIMIT: 500,
+  MAX_PHOTOS_PER_REQUEST: 100,
+  MAX_TEXT_LENGTH: 5000
 });
 
-/**
- * ================================================================
- * General utility functions
- * ================================================================
- */
+/* ============================================================================
+ * GENERAL UTILITIES
+ * ========================================================================== */
 
-function throwInvalid(message) {
-  throw new HttpsError("invalid-argument", message);
+function fail(code, message, details) {
+  throw new HttpsError(code, message, details);
 }
 
-function throwForbidden(message = "คุณไม่มีสิทธิ์ดำเนินการนี้") {
-  throw new HttpsError("permission-denied", message);
+function isPlainObject(value) {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value)
+  );
 }
 
-function throwNotFound(message = "ไม่พบข้อมูลที่ต้องการ") {
-  throw new HttpsError("not-found", message);
+function cleanString(value, maxLength = CONFIG.MAX_TEXT_LENGTH) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value.trim().slice(0, maxLength);
 }
 
-function throwConflict(message) {
-  throw new HttpsError("already-exists", message);
-}
+function requiredString(value, fieldName, maxLength = 500) {
+  const result = cleanString(value, maxLength);
 
-function throwFailed(message = "ดำเนินการไม่สำเร็จ") {
-  throw new HttpsError("internal", message);
-}
-
-function requireString(value, fieldName, maxLength = 500) {
-  if (typeof value !== "string") {
-    throwInvalid(`${fieldName} ต้องเป็นข้อความ`);
-  }
-
-  const normalized = value.trim();
-
-  if (!normalized) {
-    throwInvalid(`กรุณาระบุ${fieldName}`);
-  }
-
-  if (normalized.length > maxLength) {
-    throwInvalid(`${fieldName} ต้องมีความยาวไม่เกิน ${maxLength} ตัวอักษร`);
-  }
-
-  return normalized;
-}
-
-function optionalString(value, maxLength = 500) {
-  if (value === undefined || value === null) {
-    return "";
-  }
-
-  if (typeof value !== "string") {
-    throwInvalid("ข้อมูลข้อความไม่ถูกต้อง");
-  }
-
-  const normalized = value.trim();
-
-  if (normalized.length > maxLength) {
-    throwInvalid(`ข้อความต้องมีความยาวไม่เกิน ${maxLength} ตัวอักษร`);
-  }
-
-  return normalized;
-}
-
-function requireObject(value, fieldName = "ข้อมูล") {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throwInvalid(`${fieldName}ไม่ถูกต้อง`);
-  }
-
-  return value;
-}
-
-function normalizeUsername(value) {
-  const username = requireString(value, "ชื่อผู้ใช้", MAX_USERNAME_LENGTH)
-    .toLowerCase();
-
-  if (!/^[a-z0-9._-]{3,64}$/.test(username)) {
-    throwInvalid(
-      "ชื่อผู้ใช้ต้องมี 3–64 ตัวอักษร และใช้ภาษาอังกฤษ ตัวเลข จุด ขีดกลาง หรือขีดล่าง"
-    );
-  }
-
-  return username;
-}
-
-function usernameToAuthEmail(username) {
-  return `${normalizeUsername(username)}@${INTERNAL_AUTH_DOMAIN}`;
-}
-
-function validatePassword(value) {
-  if (typeof value !== "string") {
-    throwInvalid("รหัสผ่านไม่ถูกต้อง");
-  }
-
-  if (value.length < 8 || value.length > MAX_PASSWORD_LENGTH) {
-    throwInvalid("รหัสผ่านต้องมีความยาว 8–128 ตัวอักษร");
-  }
-
-  return value;
-}
-
-function normalizeRole(role) {
-  const normalized = String(role || "").trim().toLowerCase();
-
-  if (![ROLE_ADMIN, ROLE_ALBUM_MANAGER].includes(normalized)) {
-    throwInvalid("บทบาทผู้ใช้งานไม่ถูกต้อง");
-  }
-
-  return normalized;
-}
-
-function normalizeImageMimeType(value) {
-  const mimeType = String(value || "").trim().toLowerCase();
-
-  const allowedTypes = new Set([
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-    "image/avif",
-    "image/bmp",
-    "image/tiff"
-  ]);
-
-  if (!allowedTypes.has(mimeType)) {
-    throwInvalid("รองรับเฉพาะไฟล์รูปภาพที่ระบบกำหนด");
-  }
-
-  return mimeType;
-}
-
-function normalizeEventDate(value) {
-  if (value === undefined || value === null || value === "") {
-    return "";
-  }
-
-  if (typeof value !== "string") {
-    throwInvalid("วันที่จัดกิจกรรมไม่ถูกต้อง");
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throwInvalid("วันที่จัดกิจกรรมต้องอยู่ในรูปแบบ YYYY-MM-DD");
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-
-  if (Number.isNaN(parsed.getTime())) {
-    throwInvalid("วันที่จัดกิจกรรมไม่ถูกต้อง");
-  }
-
-  if (parsed.toISOString().slice(0, 10) !== value) {
-    throwInvalid("วันที่จัดกิจกรรมไม่ถูกต้อง");
-  }
-
-  return value;
-}
-
-function normalizeNonNegativeInteger(value, fieldName, maximum = 1000000000) {
-  const number = Number(value);
-
-  if (!Number.isSafeInteger(number) || number < 0 || number > maximum) {
-    throwInvalid(`${fieldName}ไม่ถูกต้อง`);
-  }
-
-  return number;
-}
-
-function normalizeHttpUrl(value, fieldName = "URL") {
-  const urlString = requireString(value, fieldName, 4096);
-
-  let parsed;
-
-  try {
-    parsed = new URL(urlString);
-  } catch {
-    throwInvalid(`${fieldName}ไม่ถูกต้อง`);
-  }
-
-  if (!["https:", "http:"].includes(parsed.protocol)) {
-    throwInvalid(`${fieldName}ต้องเป็น HTTP หรือ HTTPS`);
-  }
-
-  return parsed.href;
-}
-
-function cleanDocumentData(data) {
-  const result = {};
-
-  for (const [key, value] of Object.entries(data || {})) {
-    if (value !== undefined) {
-      result[key] = value;
-    }
+  if (!result) {
+    fail('invalid-argument', `กรุณาระบุ${fieldName}`);
   }
 
   return result;
 }
 
-function publicUser(user, organizationMap = new Map()) {
-  const organization = organizationMap.get(user.organizationId);
-
-  return {
-    id: user.id,
-    uid: user.uid || user.id,
-    fullName: user.fullName || user.name || "",
-    name: user.name || user.fullName || "",
-    username: user.username || "",
-    role: user.role || ROLE_ALBUM_MANAGER,
-    organizationId: user.organizationId || "",
-    organizationName:
-      user.organizationName ||
-      organization?.name ||
-      "",
-    disabled: Boolean(user.disabled),
-    createdAt: user.createdAt || null,
-    updatedAt: user.updatedAt || null
-  };
+function optionalString(value, maxLength = 5000) {
+  return cleanString(value, maxLength);
 }
 
-function publicOrganization(organization) {
-  return {
-    id: organization.id,
-    name: organization.name || "",
-    logoUrl: organization.logoUrl || "",
-    createdAt: organization.createdAt || null,
-    updatedAt: organization.updatedAt || null
-  };
+function normalizeUsername(value) {
+  return cleanString(value, 64).toLowerCase();
 }
 
-function publicCategory(category) {
-  return {
-    id: category.id,
-    name: category.name || "",
-    createdAt: category.createdAt || null,
-    updatedAt: category.updatedAt || null
-  };
-}
+function usernameToEmail(username) {
+  const normalized = normalizeUsername(username);
 
-function publicPhoto(photo) {
-  return {
-    id: photo.id,
-    albumId: photo.albumId,
-    organizationId: photo.organizationId || "",
-    url: photo.url || "",
-    imageUrl: photo.url || "",
-    thumbnailUrl: photo.thumbnailUrl || photo.url || "",
-    name: photo.name || "",
-    fileName: photo.name || "",
-    order: Number.isInteger(photo.order) ? photo.order : 0,
-    duplicateOf: photo.duplicateOf || null,
-    createdAt: photo.createdAt || null,
-    updatedAt: photo.updatedAt || null
-  };
-}
-
-function publicAlbum(album, photos = []) {
-  const orderedPhotos = [...photos].sort((a, b) => {
-    const aOrder = Number.isInteger(a.order) ? a.order : 0;
-    const bOrder = Number.isInteger(b.order) ? b.order : 0;
-
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
-    }
-
-    return String(a.id).localeCompare(String(b.id));
-  });
-
-  return {
-    id: album.id,
-    title: album.title || "",
-    description: album.description || "",
-    categoryId: album.categoryId || "",
-    categoryName: album.categoryName || "",
-    eventDate: album.eventDate || "",
-    organizationId: album.organizationId || "",
-    organizationName: album.organizationName || "",
-    coverUrl: album.coverUrl || orderedPhotos[0]?.url || "",
-    thumbnailUrl: album.thumbnailUrl || orderedPhotos[0]?.thumbnailUrl || "",
-    photoCount: Number(album.photoCount ?? orderedPhotos.length),
-    status: album.status || ALBUM_STATUS_DRAFT,
-    visibility: album.visibility || "public",
-    photos: orderedPhotos.map(publicPhoto),
-    createdBy: album.createdBy || "",
-    createdAt: album.createdAt || null,
-    updatedAt: album.updatedAt || null,
-    publishedAt: album.publishedAt || null
-  };
-}
-
-function nowTimestamp() {
-  return Timestamp.now();
-}
-
-function isTruthy(value) {
-  return value === true || value === "true" || value === 1;
-}
-
-function makeGeneratedPassword() {
-  const number = crypto.randomInt(0, 1000000);
-  return `GF${String(number).padStart(6, "0")}`;
-}
-
-function constantTimeSecretCompare(actual, expected) {
-  if (typeof actual !== "string" || typeof expected !== "string") {
-    return false;
-  }
-
-  const actualBuffer = Buffer.from(actual);
-  const expectedBuffer = Buffer.from(expected);
-
-  if (actualBuffer.length !== expectedBuffer.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
-}
-
-function normalizePhotoInput(photo, index) {
-  requireObject(photo, "ข้อมูลรูปภาพ");
-
-  const url = normalizeHttpUrl(photo.url || photo.imageUrl, "URL รูปภาพ");
-  const thumbnailUrl = photo.thumbnailUrl
-    ? normalizeHttpUrl(photo.thumbnailUrl, "URL ภาพตัวอย่าง")
-    : url;
-
-  const name = optionalString(
-    photo.name || photo.fileName || `รูปภาพ ${index + 1}`,
-    255
-  );
-
-  const order = photo.order === undefined
-    ? index
-    : normalizeNonNegativeInteger(photo.order, "ลำดับรูปภาพ", 10000000);
-
-  const duplicateOf = photo.duplicateOf
-    ? optionalString(photo.duplicateOf, 256)
-    : null;
-
-  const id = photo.id
-    ? optionalString(photo.id, 256)
-    : "";
-
-  return {
-    id,
-    url,
-    thumbnailUrl,
-    name,
-    order,
-    duplicateOf
-  };
-}
-
-function ensureLimit(value, max, fieldName) {
-  if (value > max) {
-    throw new HttpsError(
-      "resource-exhausted",
-      `${fieldName}มีจำนวนเกินขีดจำกัดที่ระบบกำหนด`
+  if (!/^[a-z0-9._-]{3,64}$/.test(normalized)) {
+    fail(
+      'invalid-argument',
+      'ชื่อผู้ใช้ต้องมีความยาว 3–64 ตัวอักษร และใช้ภาษาอังกฤษ ตัวเลข จุด ขีดกลาง หรือขีดล่าง'
     );
   }
+
+  return `${normalized}@${CONFIG.USERNAME_EMAIL_DOMAIN}`;
 }
 
-function timestampMillis(value) {
-  if (!value) return 0;
-
-  if (typeof value.toMillis === "function") {
-    return value.toMillis();
-  }
-
-  if (value instanceof Date) {
-    return value.getTime();
-  }
-
-  const parsed = new Date(value).getTime();
-  return Number.isNaN(parsed) ? 0 : parsed;
+function normalizeMimeType(value) {
+  return cleanString(value, 100).toLowerCase();
 }
 
-/**
- * ================================================================
- * Authentication and role verification
- * ================================================================
- */
+function normalizeRole(value) {
+  const role = cleanString(value, 50).toLowerCase();
 
-async function requireAuthenticatedUser(request) {
+  if (
+    role !== CONFIG.ROLES.ADMIN &&
+    role !== CONFIG.ROLES.ALBUM_MANAGER
+  ) {
+    fail('invalid-argument', 'ประเภทผู้ใช้ไม่ถูกต้อง');
+  }
+
+  return role;
+}
+
+function normalizeStatus(value, allowedValues, fieldName) {
+  const status = cleanString(value, 50).toLowerCase();
+
+  if (!allowedValues.includes(status)) {
+    fail('invalid-argument', `${fieldName}ไม่ถูกต้อง`);
+  }
+
+  return status;
+}
+
+function makeId() {
+  return crypto.randomUUID();
+}
+
+function makeInitialPassword(sequenceNumber) {
+  return `GF${String(sequenceNumber).padStart(6, '0')}`;
+}
+
+function validateDocumentId(value, fieldName = 'รหัสข้อมูล') {
+  const id = requiredString(value, fieldName, 200);
+
+  if (
+    id.includes('/') ||
+    id === '.' ||
+    id === '..'
+  ) {
+    fail('invalid-argument', `${fieldName}ไม่ถูกต้อง`);
+  }
+
+  return id;
+}
+
+function safeInteger(value, fallback = 0) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+
+  return Math.trunc(number);
+}
+
+function getCollection(name) {
+  return db.collection(name);
+}
+
+function serverTimestamp() {
+  return FieldValue.serverTimestamp();
+}
+
+function nowMilliseconds() {
+  return Date.now();
+}
+
+function getActorUid(request) {
   if (!request.auth || !request.auth.uid) {
-    throw new HttpsError(
-      "unauthenticated",
-      "กรุณาเข้าสู่ระบบก่อนดำเนินการ"
-    );
+    fail('unauthenticated', 'กรุณาเข้าสู่ระบบก่อนใช้งาน');
   }
 
   return request.auth.uid;
 }
 
+function getRequestData(request) {
+  if (!isPlainObject(request.data)) {
+    fail('invalid-argument', 'รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง');
+  }
+
+  return request.data;
+}
+
+function getAction(data) {
+  return requiredString(data.action, 'คำสั่ง', 100);
+}
+
+function assertStringArray(value, fieldName, maxItems = 100) {
+  if (!Array.isArray(value)) {
+    fail('invalid-argument', `${fieldName}ต้องเป็นรายการ`);
+  }
+
+  if (value.length > maxItems) {
+    fail(
+      'invalid-argument',
+      `${fieldName}มีจำนวนรายการมากเกินไป`
+    );
+  }
+
+  return value.map((item) => {
+    return requiredString(item, fieldName, 200);
+  });
+}
+
+function chunkArray(items, size) {
+  const result = [];
+
+  for (let i = 0; i < items.length; i += size) {
+    result.push(items.slice(i, i + size));
+  }
+
+  return result;
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/* ============================================================================
+ * AUTHENTICATION AND AUTHORIZATION
+ * ========================================================================== */
+
 async function getUserProfile(uid) {
-  const snapshot = await db.collection(COLLECTIONS.USERS).doc(uid).get();
+  const snapshot = await getCollection(
+    CONFIG.COLLECTIONS.USERS
+  ).doc(uid).get();
 
   if (!snapshot.exists) {
-    throw new HttpsError(
-      "permission-denied",
-      "ไม่พบข้อมูลผู้ใช้งานหรือบัญชียังไม่ได้รับสิทธิ์"
+    fail(
+      'permission-denied',
+      'ไม่พบข้อมูลผู้ใช้ในระบบ กรุณาติดต่อผู้ดูแลระบบ'
     );
   }
 
-  const data = snapshot.data() || {};
+  const profile = snapshot.data();
 
-  if (data.disabled === true) {
-    throw new HttpsError(
-      "permission-denied",
-      "บัญชีนี้ถูกระงับการใช้งาน"
-    );
-  }
-
-  const role = String(data.role || "").toLowerCase();
-
-  if (![ROLE_ADMIN, ROLE_ALBUM_MANAGER].includes(role)) {
-    throw new HttpsError(
-      "permission-denied",
-      "บัญชีนี้ไม่มีบทบาทที่ได้รับอนุญาต"
+  if (profile.status === CONFIG.USER_STATUS.DISABLED) {
+    fail(
+      'permission-denied',
+      'บัญชีผู้ใช้นี้ถูกระงับการใช้งาน'
     );
   }
 
   return {
-    id: snapshot.id,
     uid,
-    ...data,
-    role
+    ...profile
   };
 }
 
-async function requireUser(request) {
-  const uid = await requireAuthenticatedUser(request);
+async function requireSignedIn(request) {
+  const uid = getActorUid(request);
+
   const profile = await getUserProfile(uid);
 
-  return { uid, profile };
+  return {
+    uid,
+    profile
+  };
 }
 
-function requireAdmin(profile) {
-  if (profile.role !== ROLE_ADMIN) {
-    throwForbidden("เฉพาะผู้ดูแลระบบเท่านั้นที่ดำเนินการนี้ได้");
+async function requireAdmin(request) {
+  const actor = await requireSignedIn(request);
+
+  if (actor.profile.role !== CONFIG.ROLES.ADMIN) {
+    fail(
+      'permission-denied',
+      'คำสั่งนี้อนุญาตเฉพาะผู้ดูแลระบบ'
+    );
   }
+
+  return actor;
 }
 
-function requireAdminOrManager(profile) {
-  if (![ROLE_ADMIN, ROLE_ALBUM_MANAGER].includes(profile.role)) {
-    throwForbidden();
+async function requireAlbumManagerOrAdmin(request) {
+  const actor = await requireSignedIn(request);
+
+  const role = actor.profile.role;
+
+  if (
+    role !== CONFIG.ROLES.ADMIN &&
+    role !== CONFIG.ROLES.ALBUM_MANAGER
+  ) {
+    fail(
+      'permission-denied',
+      'คุณไม่มีสิทธิ์จัดการอัลบั้ม'
+    );
+  }
+
+  return actor;
+}
+
+function isAdmin(actor) {
+  return actor.profile.role === CONFIG.ROLES.ADMIN;
+}
+
+function getOrganizationId(actor) {
+  return cleanString(actor.profile.organizationId, 200);
+}
+
+function assertOrganizationScope(actor, organizationId) {
+  if (isAdmin(actor)) {
+    return;
+  }
+
+  const actorOrganizationId = getOrganizationId(actor);
+
+  if (!actorOrganizationId) {
+    fail(
+      'failed-precondition',
+      'บัญชีผู้ใช้ยังไม่ได้กำหนดองค์กร'
+    );
+  }
+
+  if (actorOrganizationId !== organizationId) {
+    fail(
+      'permission-denied',
+      'คุณไม่มีสิทธิ์เข้าถึงข้อมูลขององค์กรอื่น'
+    );
   }
 }
 
 async function getOrganization(organizationId) {
-  const id = requireString(organizationId, "หน่วยงาน", 256);
-  const snapshot = await db.collection(COLLECTIONS.ORGANIZATIONS).doc(id).get();
+  const id = validateDocumentId(
+    organizationId,
+    'รหัสองค์กร'
+  );
+
+  const snapshot = await getCollection(
+    CONFIG.COLLECTIONS.ORGANIZATIONS
+  ).doc(id).get();
 
   if (!snapshot.exists) {
-    throwNotFound("ไม่พบหน่วยงานที่เลือก");
+    fail('not-found', 'ไม่พบองค์กรที่ระบุ');
   }
 
-  return { id: snapshot.id, ...snapshot.data() };
-}
-
-async function ensureOrganizationAccess(profile, organizationId) {
-  const organization = await getOrganization(organizationId);
-
-  if (
-    profile.role === ROLE_ALBUM_MANAGER &&
-    profile.organizationId !== organization.id
-  ) {
-    throwForbidden("คุณไม่สามารถจัดการหน่วยงานอื่นได้");
-  }
-
-  return organization;
+  return {
+    id: snapshot.id,
+    ...snapshot.data()
+  };
 }
 
 async function getAlbum(albumId) {
-  const id = requireString(albumId, "อัลบั้ม", 256);
-  const snapshot = await db.collection(COLLECTIONS.ALBUMS).doc(id).get();
+  const id = validateDocumentId(
+    albumId,
+    'รหัสอัลบั้ม'
+  );
+
+  const snapshot = await getCollection(
+    CONFIG.COLLECTIONS.ALBUMS
+  ).doc(id).get();
 
   if (!snapshot.exists) {
-    throwNotFound("ไม่พบอัลบั้มที่ต้องการ");
+    fail('not-found', 'ไม่พบอัลบั้มที่ระบุ');
   }
 
-  return { id: snapshot.id, ...snapshot.data() };
+  return {
+    id: snapshot.id,
+    ...snapshot.data()
+  };
 }
 
-async function ensureAlbumAccess(profile, albumId) {
+async function requireAlbumAccess(actor, albumId) {
   const album = await getAlbum(albumId);
 
-  if (
-    profile.role === ROLE_ALBUM_MANAGER &&
-    profile.organizationId !== album.organizationId
-  ) {
-    throwForbidden("คุณไม่สามารถจัดการอัลบั้มของหน่วยงานอื่นได้");
-  }
+  assertOrganizationScope(
+    actor,
+    cleanString(album.organizationId, 200)
+  );
 
   return album;
 }
 
-async function ensureCategoryExists(categoryId) {
-  const id = requireString(categoryId, "หมวดหมู่", 256);
-  const snapshot = await db.collection(COLLECTIONS.CATEGORIES).doc(id).get();
+/* ============================================================================
+ * SERIALIZATION
+ * ========================================================================== */
 
-  if (!snapshot.exists) {
-    throwNotFound("ไม่พบหมวดหมู่ที่เลือก");
-  }
-
-  return { id: snapshot.id, ...snapshot.data() };
-}
-
-/**
- * ================================================================
- * Dashboard initialization
- * ================================================================
- */
-
-async function actionDashboardInit(context) {
-  const { profile } = context;
-
-  requireAdminOrManager(profile);
-
-  const organizationSnapshots = profile.role === ROLE_ADMIN
-    ? await db.collection(COLLECTIONS.ORGANIZATIONS)
-      .orderBy("name")
-      .limit(MAX_DASHBOARD_ORGANIZATIONS)
-      .get()
-    : await db.collection(COLLECTIONS.ORGANIZATIONS)
-      .where(admin.firestore.FieldPath.documentId(), "==", profile.organizationId)
-      .limit(1)
-      .get();
-
-  const organizations = organizationSnapshots.docs.map(snapshot => ({
-    id: snapshot.id,
-    ...snapshot.data()
-  }));
-
-  const organizationMap = new Map(
-    organizations.map(organization => [organization.id, organization])
-  );
-
-  const categorySnapshots = await db.collection(COLLECTIONS.CATEGORIES)
-    .orderBy("name")
-    .limit(MAX_DASHBOARD_CATEGORIES)
-    .get();
-
-  const categories = categorySnapshots.docs.map(snapshot => ({
-    id: snapshot.id,
-    ...snapshot.data()
-  }));
-
-  let userSnapshots = [];
-
-  if (profile.role === ROLE_ADMIN) {
-    const result = await db.collection(COLLECTIONS.USERS)
-      .orderBy("createdAt", "desc")
-      .limit(MAX_DASHBOARD_USERS)
-      .get();
-
-    userSnapshots = result.docs.map(snapshot => ({
-      id: snapshot.id,
-      ...snapshot.data()
-    }));
-  }
-
-  let albumQuery = db.collection(COLLECTIONS.ALBUMS)
-    .orderBy("updatedAt", "desc")
-    .limit(MAX_DASHBOARD_ALBUMS);
-
-  if (profile.role === ROLE_ALBUM_MANAGER) {
-    albumQuery = db.collection(COLLECTIONS.ALBUMS)
-      .where("organizationId", "==", profile.organizationId)
-      .limit(MAX_DASHBOARD_ALBUMS);
-  }
-
-  const albumSnapshot = await albumQuery.get();
-
-  const rawAlbums = albumSnapshot.docs.map(snapshot => ({
-    id: snapshot.id,
-    ...snapshot.data()
-  }));
-
-  rawAlbums.sort((a, b) => {
-    return timestampMillis(b.updatedAt || b.createdAt) -
-      timestampMillis(a.updatedAt || a.createdAt);
-  });
-
-  const albumIds = rawAlbums.map(album => album.id);
-  const photoMap = new Map();
-
-  /*
-   * โหลดรูปของอัลบั้มที่แสดงในแดชบอร์ด
-   * ใช้ document ID เป็นตัวเชื่อม เพื่อไม่ให้ข้อมูลข้ามอัลบั้ม
-   */
-  if (albumIds.length > 0) {
-    const photoSnapshots = await db.collection(COLLECTIONS.PHOTOS)
-      .where("albumId", "in", albumIds.slice(0, 30))
-      .get()
-      .catch(async () => null);
-
-    if (photoSnapshots) {
-      for (const snapshot of photoSnapshots.docs) {
-        const photo = { id: snapshot.id, ...snapshot.data() };
-
-        if (!photoMap.has(photo.albumId)) {
-          photoMap.set(photo.albumId, []);
-        }
-
-        photoMap.get(photo.albumId).push(photo);
-      }
-    }
-
-    /*
-     * Firestore "in" query รองรับจำนวนค่าจำกัด
-     * โหลดส่วนที่เหลือเป็นกลุ่มละ 30 อัลบั้ม
-     */
-    for (let start = 30; start < albumIds.length; start += 30) {
-      const chunk = albumIds.slice(start, start + 30);
-
-      const snapshots = await db.collection(COLLECTIONS.PHOTOS)
-        .where("albumId", "in", chunk)
-        .get();
-
-      for (const snapshot of snapshots.docs) {
-        const photo = { id: snapshot.id, ...snapshot.data() };
-
-        if (!photoMap.has(photo.albumId)) {
-          photoMap.set(photo.albumId, []);
-        }
-
-        photoMap.get(photo.albumId).push(photo);
-      }
-    }
-  }
-
-  const albums = rawAlbums.map(album => {
-    const organization = organizationMap.get(album.organizationId);
-
-    const photos = photoMap.get(album.id) || [];
-
-    return publicAlbum({
-      ...album,
-      organizationName:
-        album.organizationName ||
-        organization?.name ||
-        "",
-      photoCount: album.photoCount ?? photos.length
-    }, photos);
-  });
-
-  const users = userSnapshots.map(user => publicUser(user, organizationMap));
-
-  const photoCount = albums.reduce((sum, album) => {
-    return sum + Number(album.photoCount || 0);
-  }, 0);
-
-  const organizationCount = profile.role === ROLE_ADMIN
-    ? organizations.length
-    : 1;
-
-  const userCount = profile.role === ROLE_ADMIN
-    ? users.length
-    : undefined;
-
-  const currentProfile = {
-    id: profile.id,
-    uid: profile.uid,
-    fullName: profile.fullName || profile.name || "",
-    name: profile.name || profile.fullName || "",
-    username: profile.username || "",
-    role: profile.role,
-    organizationId: profile.organizationId || "",
-    organizationName:
-      profile.organizationName ||
-      organizationMap.get(profile.organizationId)?.name ||
-      "",
-    disabled: false
-  };
+function serializeDocument(snapshot) {
+  const data = snapshot.data() || {};
 
   return {
-    ok: true,
-    appName: APP_NAME,
-    version: APP_VERSION,
-    profile: currentProfile,
-    user: currentProfile,
-    organizations: organizations.map(publicOrganization),
-    users,
-    categories: categories.map(publicCategory),
-    albums,
-    stats: {
-      photoCount,
-      albumCount: albums.length,
-      organizationCount,
-      ...(userCount !== undefined ? { userCount } : {})
-    }
+    id: snapshot.id,
+    ...data
   };
 }
 
-/**
- * ================================================================
- * Album management
- * ================================================================
- */
-
-async function actionSaveAlbum(context, payload) {
-  const { uid, profile } = context;
-
-  requireAdminOrManager(profile);
-
-  const title = requireString(payload.title, "ชื่ออัลบั้ม", MAX_TITLE_LENGTH);
-  const description = optionalString(payload.description, MAX_DESCRIPTION_LENGTH);
-  const categoryId = requireString(payload.categoryId, "หมวดหมู่", 256);
-  const eventDate = normalizeEventDate(payload.eventDate);
-
-  let organizationId = optionalString(payload.organizationId, 256);
-
-  if (profile.role === ROLE_ALBUM_MANAGER) {
-    organizationId = profile.organizationId;
+function serializeForClient(value) {
+  if (value === null || value === undefined) {
+    return value === undefined ? null : null;
   }
 
-  if (!organizationId) {
-    throwInvalid("กรุณาเลือกหน่วยงานเจ้าของอัลบั้ม");
+  if (value instanceof Date) {
+    return value.toISOString();
   }
 
-  const organization = await ensureOrganizationAccess(profile, organizationId);
-  const category = await ensureCategoryExists(categoryId);
+  if (
+    value &&
+    typeof value.toDate === 'function'
+  ) {
+    return value.toDate().toISOString();
+  }
 
-  const albumId = optionalString(payload.albumId, 256);
-  const albumsCollection = db.collection(COLLECTIONS.ALBUMS);
+  if (Array.isArray(value)) {
+    return value.map(serializeForClient);
+  }
 
-  const now = nowTimestamp();
+  if (isPlainObject(value)) {
+    const result = {};
 
-  if (albumId) {
-    const existing = await ensureAlbumAccess(profile, albumId);
-
-    if (existing.organizationId !== organization.id) {
-      throwForbidden("ไม่สามารถย้ายอัลบั้มไปยังหน่วยงานอื่นได้");
+    for (const [key, item] of Object.entries(value)) {
+      result[key] = serializeForClient(item);
     }
 
-    await albumsCollection.doc(albumId).set({
-      title,
-      description,
-      categoryId: category.id,
-      categoryName: category.name || "",
-      eventDate,
-      organizationId: organization.id,
-      organizationName: organization.name || "",
-      updatedAt: now,
-      updatedBy: uid
-    }, { merge: true });
+    return result;
+  }
+
+  return value;
+}
+
+function serializeProfile(profile) {
+  const result = { ...profile };
+
+  delete result.password;
+  delete result.passwordHash;
+  delete result.resetToken;
+
+  return serializeForClient(result);
+}
+
+/* ============================================================================
+ * INPUT VALIDATION
+ * ========================================================================== */
+
+function validateImageMimeType(mimeType) {
+  const normalized = normalizeMimeType(mimeType);
+
+  if (
+    !CONFIG.IMAGE.ALLOWED_MIME_TYPES.includes(normalized)
+  ) {
+    fail(
+      'invalid-argument',
+      'รองรับเฉพาะรูปภาพ JPEG, PNG, WEBP และ GIF'
+    );
+  }
+
+  return normalized;
+}
+
+function validateImageBase64(base64Value) {
+  const input = requiredString(
+    base64Value,
+    'ข้อมูลรูปภาพ',
+    CONFIG.IMAGE.MAX_BYTES * 2
+  );
+
+  let base64 = input;
+
+  const dataUriMatch = input.match(
+    /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
+  );
+
+  if (dataUriMatch) {
+    base64 = dataUriMatch[2];
+  }
+
+  base64 = base64.replace(/\s/g, '');
+
+  if (
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(base64) ||
+    base64.length % 4 === 1
+  ) {
+    fail('invalid-argument', 'ข้อมูลรูปภาพไม่ถูกต้อง');
+  }
+
+  const estimatedBytes = Math.floor(
+    (base64.length * 3) / 4
+  );
+
+  if (estimatedBytes > CONFIG.IMAGE.MAX_BYTES) {
+    fail(
+      'resource-exhausted',
+      'รูปภาพมีขนาดใหญ่เกิน 7 MB'
+    );
+  }
+
+  return base64;
+}
+
+function decodeImageBase64(base64) {
+  const buffer = Buffer.from(base64, 'base64');
+
+  if (
+    buffer.length === 0 ||
+    buffer.length > CONFIG.IMAGE.MAX_BYTES
+  ) {
+    fail(
+      'invalid-argument',
+      'ขนาดรูปภาพไม่ถูกต้อง'
+    );
+  }
+
+  return buffer;
+}
+
+function validateImageSignature(buffer, mimeType) {
+  const isJpeg =
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff;
+
+  const isPng =
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a;
+
+  const isGif =
+    buffer.length >= 6 &&
+    buffer.toString('ascii', 0, 3) === 'GIF';
+
+  const isWebp =
+    buffer.length >= 12 &&
+    buffer.toString('ascii', 0, 4) === 'RIFF' &&
+    buffer.toString('ascii', 8, 12) === 'WEBP';
+
+  const valid =
+    (mimeType === 'image/jpeg' && isJpeg) ||
+    (mimeType === 'image/png' && isPng) ||
+    (mimeType === 'image/gif' && isGif) ||
+    (mimeType === 'image/webp' && isWebp);
+
+  if (!valid) {
+    fail(
+      'invalid-argument',
+      'ชนิดไฟล์ไม่ตรงกับข้อมูลรูปภาพจริง'
+    );
+  }
+}
+
+function validateUsername(username) {
+  const normalized = normalizeUsername(username);
+
+  if (!/^[a-z0-9._-]{3,64}$/.test(normalized)) {
+    fail(
+      'invalid-argument',
+      'ชื่อผู้ใช้ต้องมีความยาว 3–64 ตัวอักษร'
+    );
+  }
+
+  return normalized;
+}
+
+function validatePassword(password) {
+  if (
+    typeof password !== 'string' ||
+    password.length < 8 ||
+    password.length > 128
+  ) {
+    fail(
+      'invalid-argument',
+      'รหัสผ่านต้องมีความยาว 8–128 ตัวอักษร'
+    );
+  }
+
+  return password;
+}
+
+/* ============================================================================
+ * IMGBB
+ * ========================================================================== */
+
+async function uploadBufferToImgBB(
+  buffer,
+  mimeType,
+  filename
+) {
+  const apiKey = cleanString(
+    IMGBB_API_KEY.value(),
+    500
+  );
+
+  if (!apiKey) {
+    fail(
+      'failed-precondition',
+      'ยังไม่ได้กำหนด IMGBB_API_KEY ใน Secret Manager'
+    );
+  }
+
+  const controller = new AbortController();
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, CONFIG.IMAGE.IMGBB_TIMEOUT_MS);
+
+  try {
+    const form = new FormData();
+
+    form.append(
+      'image',
+      buffer.toString('base64')
+    );
+
+    form.append(
+      'name',
+      cleanString(filename, 200) || 'actigallery-image'
+    );
+
+    const endpoint = new URL(
+      'https://api.imgbb.com/1/upload'
+    );
+
+    endpoint.searchParams.set('key', apiKey);
+
+    const response = await fetch(endpoint.toString(), {
+      method: 'POST',
+      body: form,
+      signal: controller.signal
+    });
+
+    const responseText = await response.text();
+
+    let result;
+
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      logger.error('ImgBB returned invalid JSON');
+
+      fail(
+        'internal',
+        'บริการจัดเก็บรูปภาพตอบกลับไม่ถูกต้อง'
+      );
+    }
+
+    if (!response.ok || !result.success || !result.data) {
+      logger.error('ImgBB upload failed', {
+        status: response.status,
+        error: result.error
+          ? {
+              code: result.error.code,
+              message: result.error.message
+            }
+          : null
+      });
+
+      fail(
+        'unavailable',
+        'อัปโหลดรูปภาพไปยัง ImgBB ไม่สำเร็จ'
+      );
+    }
+
+    const imageUrl = cleanString(
+      result.data.url,
+      2000
+    );
+
+    const displayUrl = cleanString(
+      result.data.display_url || result.data.url,
+      2000
+    );
+
+    const deleteUrl = cleanString(
+      result.data.delete_url,
+      2000
+    );
+
+    if (
+      !imageUrl.startsWith('https://') ||
+      !displayUrl.startsWith('https://')
+    ) {
+      fail(
+        'internal',
+        'ImgBB ส่ง URL รูปภาพที่ไม่ถูกต้อง'
+      );
+    }
 
     return {
-      ok: true,
-      albumId,
-      id: albumId,
-      message: "บันทึกรายละเอียดอัลบั้มแล้ว"
+      url: imageUrl,
+      displayUrl,
+      deleteUrl: deleteUrl || null,
+      mimeType,
+      size: buffer.length,
+      uploadedAt: serverTimestamp()
     };
-  }
-
-  const reference = albumsCollection.doc();
-
-  const albumData = {
-    title,
-    description,
-    categoryId: category.id,
-    categoryName: category.name || "",
-    eventDate,
-    organizationId: organization.id,
-    organizationName: organization.name || "",
-    coverUrl: "",
-    thumbnailUrl: "",
-    photoCount: 0,
-    status: ALBUM_STATUS_DRAFT,
-    visibility: "public",
-    createdBy: uid,
-    updatedBy: uid,
-    createdAt: now,
-    updatedAt: now,
-    publishedAt: null
-  };
-
-  await reference.set(albumData);
-
-  return {
-    ok: true,
-    albumId: reference.id,
-    id: reference.id,
-    message: "สร้างอัลบั้มแล้ว"
-  };
-}
-
-async function actionPublishAlbum(context, payload) {
-  const { uid, profile } = context;
-  requireAdminOrManager(profile);
-
-  const albumId = requireString(payload.albumId, "อัลบั้ม", 256);
-  const album = await ensureAlbumAccess(profile, albumId);
-
-  const photosSnapshot = await db.collection(COLLECTIONS.PHOTOS)
-    .where("albumId", "==", albumId)
-    .get();
-
-  const photos = photosSnapshot.docs
-    .map(snapshot => ({ id: snapshot.id, ...snapshot.data() }))
-    .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
-
-  if (!photos.length) {
-    throwInvalid("ไม่สามารถเผยแพร่อัลบั้มที่ไม่มีรูปภาพได้");
-  }
-
-  const cover = photos[0];
-
-  await db.collection(COLLECTIONS.ALBUMS).doc(albumId).set({
-    status: ALBUM_STATUS_PUBLISHED,
-    visibility: "public",
-    photoCount: photos.length,
-    coverUrl: cover.url || "",
-    thumbnailUrl: cover.thumbnailUrl || cover.url || "",
-    publishedAt: nowTimestamp(),
-    updatedAt: nowTimestamp(),
-    updatedBy: uid
-  }, { merge: true });
-
-  logger.info("Album published", {
-    albumId,
-    organizationId: album.organizationId,
-    photoCount: photos.length,
-    uid
-  });
-
-  return {
-    ok: true,
-    albumId,
-    status: ALBUM_STATUS_PUBLISHED,
-    photoCount: photos.length,
-    message: "เผยแพร่อัลบั้มแล้ว"
-  };
-}
-
-async function actionDeleteAlbum(context, payload) {
-  const { uid, profile } = context;
-  requireAdminOrManager(profile);
-
-  const albumId = requireString(payload.albumId, "อัลบั้ม", 256);
-  const album = await ensureAlbumAccess(profile, albumId);
-
-  const photoSnapshot = await db.collection(COLLECTIONS.PHOTOS)
-    .where("albumId", "==", albumId)
-    .get();
-
-  const refs = photoSnapshot.docs.map(snapshot => snapshot.ref);
-  refs.push(db.collection(COLLECTIONS.ALBUMS).doc(albumId));
-
-  for (let start = 0; start < refs.length; start += MAX_BATCH_OPERATIONS) {
-    const batch = db.batch();
-    const chunk = refs.slice(start, start + MAX_BATCH_OPERATIONS);
-
-    for (const ref of chunk) {
-      batch.delete(ref);
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
     }
 
-    await batch.commit();
+    if (error && error.name === 'AbortError') {
+      fail(
+        'deadline-exceeded',
+        'การอัปโหลดรูปภาพใช้เวลานานเกินไป กรุณาลองใหม่'
+      );
+    }
+
+    logger.error('ImgBB upload exception', {
+      message: error?.message || 'Unknown error'
+    });
+
+    fail(
+      'unavailable',
+      'ไม่สามารถเชื่อมต่อบริการจัดเก็บรูปภาพได้'
+    );
+  } finally {
+    clearTimeout(timeout);
   }
-
-  logger.info("Album deleted", {
-    albumId,
-    organizationId: album.organizationId,
-    deletedPhotoCount: photoSnapshot.size,
-    uid
-  });
-
-  return {
-    ok: true,
-    albumId,
-    deletedPhotoCount: photoSnapshot.size,
-    message: "ลบอัลบั้มแล้ว"
-  };
 }
 
-async function actionListAlbumPhotos(context, payload) {
-  const { profile } = context;
-  requireAdminOrManager(profile);
+/* ============================================================================
+ * DASHBOARD INITIAL DATA
+ * ========================================================================== */
 
-  const albumId = requireString(payload.albumId, "อัลบั้ม", 256);
-  await ensureAlbumAccess(profile, albumId);
-
-  const snapshot = await db.collection(COLLECTIONS.PHOTOS)
-    .where("albumId", "==", albumId)
-    .get();
-
-  const photos = snapshot.docs
-    .map(doc => publicPhoto({ id: doc.id, ...doc.data() }))
-    .sort((a, b) => a.order - b.order);
-
-  return { ok: true, albumId, photos };
-}
-
-async function actionSaveAlbumPhotos(context, payload) {
-  const { uid, profile } = context;
-  requireAdminOrManager(profile);
-
-  const albumId = requireString(payload.albumId, "อัลบั้ม", 256);
-  const album = await ensureAlbumAccess(profile, albumId);
-
-  if (!Array.isArray(payload.photos)) {
-    throwInvalid("รายการรูปภาพไม่ถูกต้อง");
-  }
-
-  ensureLimit(payload.photos.length, MAX_PHOTOS_PER_ALBUM, "รูปภาพในอัลบั้ม");
-
-  const photos = payload.photos.map((photo, index) => normalizePhotoInput(photo, index));
-  const photoCollection = db.collection(COLLECTIONS.PHOTOS);
-  const existingSnapshot = await photoCollection.where("albumId", "==", albumId).get();
-
-  const existingById = new Map(
-    existingSnapshot.docs.map(snapshot => [
-      snapshot.id,
-      { ref: snapshot.ref, data: snapshot.data() }
-    ])
+async function listOrganizations(actor) {
+  let query = getCollection(
+    CONFIG.COLLECTIONS.ORGANIZATIONS
   );
 
-  const keepIds = new Set();
-  const savedPhotoData = [];
-  const now = nowTimestamp();
+  if (!isAdmin(actor)) {
+    const organizationId = getOrganizationId(actor);
 
-  for (let index = 0; index < photos.length; index++) {
-    const photo = photos[index];
-    let reference = null;
-    let previous = null;
-
-    /*
-     * ใช้ document ID ที่ส่งมาจาก client เฉพาะเมื่อมีเอกสารเดิม
-     * ในอัลบั้มนี้จริงเท่านั้น ป้องกันการเขียนทับรูปของอัลบั้มอื่น
-     */
-    if (photo.id && existingById.has(photo.id)) {
-      reference = existingById.get(photo.id).ref;
-      previous = existingById.get(photo.id).data;
-    } else {
-      reference = photoCollection.doc();
+    if (!organizationId) {
+      return [];
     }
 
-    const data = {
-      albumId,
-      organizationId: album.organizationId,
-      url: photo.url,
-      thumbnailUrl: photo.thumbnailUrl,
-      name: photo.name || `รูปภาพ ${index + 1}`,
-      order: index,
-      duplicateOf: photo.duplicateOf || null,
-      createdAt: previous?.createdAt || now,
-      updatedAt: now,
-      updatedBy: uid
-    };
+    const snapshot = await query
+      .doc(organizationId)
+      .get();
 
-    keepIds.add(reference.id);
-    savedPhotoData.push({
-      id: reference.id,
-      ...data
-    });
-
-    /*
-     * ใช้ batch เพื่อจำกัดจำนวนการเขียนต่อ request
-     * แบ่งกลุ่มด้านล่างเพื่อไม่ให้เกินขีดจำกัด Firestore
-     */
+    return snapshot.exists
+      ? [serializeDocument(snapshot)]
+      : [];
   }
 
-  const operations = [];
+  const snapshot = await query
+    .orderBy('createdAt', 'desc')
+    .limit(CONFIG.MAX_LIST_LIMIT)
+    .get();
 
-  for (const photo of savedPhotoData) {
-    operations.push({
-      type: "set",
-      ref: photoCollection.doc(photo.id),
-      data: photo
-    });
+  return snapshot.docs.map(serializeDocument);
+}
+
+async function listCategories(actor) {
+  let query = getCollection(
+    CONFIG.COLLECTIONS.CATEGORIES
+  );
+
+  if (!isAdmin(actor)) {
+    query = query.where(
+      'organizationId',
+      '==',
+      getOrganizationId(actor)
+    );
   }
 
-  for (const existing of existingSnapshot.docs) {
-    if (!keepIds.has(existing.id)) {
-      operations.push({
-        type: "delete",
-        ref: existing.ref
-      });
-    }
+  const snapshot = await query
+    .limit(CONFIG.MAX_LIST_LIMIT)
+    .get();
+
+  return snapshot.docs.map(serializeDocument);
+}
+
+async function listUsers(actor) {
+  if (!isAdmin(actor)) {
+    return [];
   }
 
-  for (let start = 0; start < operations.length; start += MAX_BATCH_OPERATIONS) {
-    const batch = db.batch();
-    const chunk = operations.slice(start, start + MAX_BATCH_OPERATIONS);
+  const snapshot = await getCollection(
+    CONFIG.COLLECTIONS.USERS
+  )
+    .orderBy('createdAt', 'desc')
+    .limit(CONFIG.MAX_LIST_LIMIT)
+    .get();
 
-    for (const operation of chunk) {
-      if (operation.type === "delete") {
-        batch.delete(operation.ref);
-      } else {
-        batch.set(operation.ref, operation.data, { merge: true });
-      }
-    }
+  return snapshot.docs.map((doc) => {
+    const data = serializeDocument(doc);
 
-    await batch.commit();
+    delete data.password;
+    delete data.passwordHash;
+    delete data.resetToken;
+
+    return data;
+  });
+}
+
+async function listAlbums(actor) {
+  let query = getCollection(
+    CONFIG.COLLECTIONS.ALBUMS
+  );
+
+  if (!isAdmin(actor)) {
+    query = query.where(
+      'organizationId',
+      '==',
+      getOrganizationId(actor)
+    );
   }
 
-  const firstPhoto = savedPhotoData[0] || null;
+  const snapshot = await query
+    .orderBy('createdAt', 'desc')
+    .limit(CONFIG.MAX_LIST_LIMIT)
+    .get();
 
-  await db.collection(COLLECTIONS.ALBUMS).doc(albumId).set({
-    photoCount: savedPhotoData.length,
-    coverUrl: firstPhoto?.url || "",
-    thumbnailUrl: firstPhoto?.thumbnailUrl || firstPhoto?.url || "",
-    updatedAt: now,
-    updatedBy: uid
-  }, { merge: true });
+  return snapshot.docs.map(serializeDocument);
+}
 
-  logger.info("Album photos saved", {
-    albumId,
-    organizationId: album.organizationId,
-    photoCount: savedPhotoData.length,
-    uid
+async function listPhotosForAlbums(albums) {
+  const albumIds = albums
+    .map((album) => album.id)
+    .filter(Boolean);
+
+  if (albumIds.length === 0) {
+    return [];
+  }
+
+  const chunks = chunkArray(albumIds, 30);
+  const output = [];
+
+  for (const chunk of chunks) {
+    const snapshot = await getCollection(
+      CONFIG.COLLECTIONS.PHOTOS
+    )
+      .where('albumId', 'in', chunk)
+      .where('status', '==', CONFIG.PHOTO_STATUS.READY)
+      .limit(CONFIG.MAX_LIST_LIMIT)
+      .get();
+
+    output.push(
+      ...snapshot.docs.map(serializeDocument)
+    );
+  }
+
+  output.sort((a, b) => {
+    return safeInteger(a.order) - safeInteger(b.order);
   });
 
+  return output;
+}
+
+async function getDashboardStats(
+  actor,
+  albums,
+  photos,
+  organizations,
+  users
+) {
+  const publishedAlbums = albums.filter(
+    (album) => album.status === CONFIG.ALBUM_STATUS.PUBLISHED
+  );
+
+  const activePhotos = photos.filter(
+    (photo) => photo.status === CONFIG.PHOTO_STATUS.READY
+  );
+
   return {
-    ok: true,
-    albumId,
-    photoCount: savedPhotoData.length,
-    photos: savedPhotoData.map(publicPhoto),
-    message: "บันทึกรูปภาพและลำดับรูปแล้ว"
+    photoCount: activePhotos.length,
+    albumCount: albums.length,
+    publishedAlbumCount: publishedAlbums.length,
+    organizationCount: isAdmin(actor)
+      ? organizations.length
+      : organizations.length,
+    userCount: isAdmin(actor)
+      ? users.length
+      : 1
   };
 }
 
-async function actionDeletePhotos(context, payload) {
-  const { uid, profile } = context;
-  requireAdminOrManager(profile);
+async function handleDashboardInit(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
 
-  const albumId = requireString(payload.albumId, "อัลบั้ม", 256);
-  const album = await ensureAlbumAccess(profile, albumId);
+  const [
+    organizations,
+    categories,
+    albums,
+    users
+  ] = await Promise.all([
+    listOrganizations(actor),
+    listCategories(actor),
+    listAlbums(actor),
+    listUsers(actor)
+  ]);
 
-  if (!Array.isArray(payload.photoIds) || payload.photoIds.length === 0) {
-    throwInvalid("กรุณาเลือกรูปภาพที่ต้องการลบ");
+  const photos = await listPhotosForAlbums(albums);
+
+  const stats = await getDashboardStats(
+    actor,
+    albums,
+    photos,
+    organizations,
+    users
+  );
+
+  return {
+    success: true,
+    appName: CONFIG.APP_NAME,
+    version: CONFIG.VERSION,
+
+    profile: serializeProfile(actor.profile),
+
+    permissions: {
+      isAdmin: isAdmin(actor),
+      canManageUsers: isAdmin(actor),
+      canManageOrganizations: isAdmin(actor),
+      canManageCategories: true,
+      canManageAlbums: true,
+      canManagePhotos: true
+    },
+
+    stats,
+    users,
+    organizations,
+    categories,
+    albums,
+    photos
+  };
+}
+
+/* ============================================================================
+ * ALBUMS
+ * ========================================================================== */
+
+async function handleSaveAlbum(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
+
+  const title = requiredString(
+    data.title,
+    'ชื่ออัลบั้ม',
+    300
+  );
+
+  const description = optionalString(
+    data.description,
+    5000
+  );
+
+  const organizationId = isAdmin(actor)
+    ? requiredString(data.organizationId, 'องค์กร', 200)
+    : getOrganizationId(actor);
+
+  if (!organizationId) {
+    fail(
+      'failed-precondition',
+      'กรุณากำหนดองค์กรให้บัญชีผู้ใช้ก่อน'
+    );
   }
 
-  const photoIds = [...new Set(payload.photoIds.map(id =>
-    requireString(id, "รหัสรูปภาพ", 256)
-  ))];
+  assertOrganizationScope(actor, organizationId);
 
-  const refs = [];
-  for (const photoId of photoIds) {
-    const ref = db.collection(COLLECTIONS.PHOTOS).doc(photoId);
-    const snapshot = await ref.get();
+  await getOrganization(organizationId);
 
-    if (!snapshot.exists) continue;
+  const categoryId = optionalString(
+    data.categoryId,
+    200
+  );
 
-    const photo = snapshot.data();
+  if (categoryId) {
+    const categorySnapshot = await getCollection(
+      CONFIG.COLLECTIONS.CATEGORIES
+    )
+      .doc(categoryId)
+      .get();
 
-    if (photo.albumId !== albumId) {
-      throwForbidden("มีรูปภาพที่ไม่ได้อยู่ในอัลบั้มนี้");
+    if (!categorySnapshot.exists) {
+      fail('not-found', 'ไม่พบหมวดหมู่ที่เลือก');
     }
 
-    refs.push(ref);
+    const category = categorySnapshot.data();
+
+    if (
+      category.organizationId &&
+      category.organizationId !== organizationId
+    ) {
+      fail(
+        'permission-denied',
+        'หมวดหมู่ดังกล่าวไม่ได้อยู่ในองค์กรที่เลือก'
+      );
+    }
   }
 
-  for (let start = 0; start < refs.length; start += MAX_BATCH_OPERATIONS) {
+  const albumId = cleanString(data.id, 200);
+
+  const albumRef = albumId
+    ? getCollection(CONFIG.COLLECTIONS.ALBUMS).doc(
+        validateDocumentId(albumId, 'รหัสอัลบั้ม')
+      )
+    : getCollection(CONFIG.COLLECTIONS.ALBUMS).doc();
+
+  let existingData = null;
+
+  if (albumId) {
+    const existingSnapshot = await albumRef.get();
+
+    if (!existingSnapshot.exists) {
+      fail('not-found', 'ไม่พบอัลบั้มที่ต้องการแก้ไข');
+    }
+
+    existingData = existingSnapshot.data();
+
+    assertOrganizationScope(
+      actor,
+      existingData.organizationId
+    );
+  }
+
+  const requestedStatus = cleanString(data.status, 50);
+
+  let status = existingData
+    ? existingData.status
+    : CONFIG.ALBUM_STATUS.DRAFT;
+
+  if (
+    requestedStatus &&
+    Object.values(CONFIG.ALBUM_STATUS).includes(requestedStatus)
+  ) {
+    status = requestedStatus;
+  }
+
+  const album = {
+    title,
+    description,
+    organizationId,
+    categoryId: categoryId || null,
+
+    coverUrl: optionalString(data.coverUrl, 2000) ||
+      (existingData ? existingData.coverUrl || null : null),
+
+    status,
+
+    createdBy: existingData
+      ? existingData.createdBy || actor.uid
+      : actor.uid,
+
+    updatedBy: actor.uid,
+    updatedAt: serverTimestamp(),
+
+    createdAt: existingData
+      ? existingData.createdAt || serverTimestamp()
+      : serverTimestamp()
+  };
+
+  await albumRef.set(album, { merge: true });
+
+  return {
+    success: true,
+    id: albumRef.id,
+    album: {
+      id: albumRef.id,
+      ...album
+    }
+  };
+}
+
+async function handlePublishAlbum(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
+
+  const albumId = validateDocumentId(
+    data.albumId || data.id,
+    'รหัสอัลบั้ม'
+  );
+
+  const album = await requireAlbumAccess(actor, albumId);
+
+  const photosSnapshot = await getCollection(
+    CONFIG.COLLECTIONS.PHOTOS
+  )
+    .where('albumId', '==', albumId)
+    .where('status', '==', CONFIG.PHOTO_STATUS.READY)
+    .limit(1)
+    .get();
+
+  if (photosSnapshot.empty) {
+    fail(
+      'failed-precondition',
+      'อัลบั้มนี้ยังไม่มีรูปภาพที่อัปโหลดสำเร็จ'
+    );
+  }
+
+  const coverUrl = optionalString(
+    data.coverUrl,
+    2000
+  ) || album.coverUrl || null;
+
+  await getCollection(
+    CONFIG.COLLECTIONS.ALBUMS
+  ).doc(albumId).set({
+    status: CONFIG.ALBUM_STATUS.PUBLISHED,
+    publishedAt: serverTimestamp(),
+    publishedBy: actor.uid,
+    coverUrl,
+    updatedAt: serverTimestamp(),
+    updatedBy: actor.uid
+  }, { merge: true });
+
+  return {
+    success: true,
+    albumId,
+    status: CONFIG.ALBUM_STATUS.PUBLISHED,
+    message: 'เผยแพร่อัลบั้มเรียบร้อยแล้ว'
+  };
+}
+
+async function handleDeleteAlbum(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
+
+  const albumId = validateDocumentId(
+    data.albumId || data.id,
+    'รหัสอัลบั้ม'
+  );
+
+  await requireAlbumAccess(actor, albumId);
+
+  const photosSnapshot = await getCollection(
+    CONFIG.COLLECTIONS.PHOTOS
+  )
+    .where('albumId', '==', albumId)
+    .get();
+
+  const batchItems = [
+    ...photosSnapshot.docs.map((doc) => ({
+      ref: doc.ref,
+      data: null
+    })),
+    {
+      ref: getCollection(CONFIG.COLLECTIONS.ALBUMS).doc(albumId),
+      data: null
+    }
+  ];
+
+  for (const chunk of chunkArray(
+    batchItems,
+    CONFIG.MAX_BATCH_OPERATIONS
+  )) {
     const batch = db.batch();
-    for (const ref of refs.slice(start, start + MAX_BATCH_OPERATIONS)) {
-      batch.delete(ref);
+
+    for (const item of chunk) {
+      batch.delete(item.ref);
     }
+
     await batch.commit();
   }
 
-  const remaining = await db.collection(COLLECTIONS.PHOTOS)
-    .where("albumId", "==", albumId)
+  return {
+    success: true,
+    albumId,
+    deletedPhotos: photosSnapshot.size,
+    message: 'ลบอัลบั้มเรียบร้อยแล้ว'
+  };
+}
+
+async function handleListAlbumPhotos(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
+
+  const albumId = validateDocumentId(
+    data.albumId || data.id,
+    'รหัสอัลบั้ม'
+  );
+
+  await requireAlbumAccess(actor, albumId);
+
+  const snapshot = await getCollection(
+    CONFIG.COLLECTIONS.PHOTOS
+  )
+    .where('albumId', '==', albumId)
+    .where('status', '==', CONFIG.PHOTO_STATUS.READY)
+    .limit(CONFIG.MAX_LIST_LIMIT)
     .get();
 
-  const remainingPhotos = remaining.docs
-    .map(doc => ({ id: doc.id, ...doc.data() }))
-    .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+  const photos = snapshot.docs.map(serializeDocument);
 
-  const batch = db.batch();
-
-  remainingPhotos.forEach((photo, index) => {
-    batch.set(db.collection(COLLECTIONS.PHOTOS).doc(photo.id), {
-      order: index,
-      updatedAt: nowTimestamp(),
-      updatedBy: uid
-    }, { merge: true });
+  photos.sort((a, b) => {
+    return safeInteger(a.order) - safeInteger(b.order);
   });
 
-  batch.set(db.collection(COLLECTIONS.ALBUMS).doc(albumId), {
-    photoCount: remainingPhotos.length,
-    coverUrl: remainingPhotos[0]?.url || "",
-    thumbnailUrl: remainingPhotos[0]?.thumbnailUrl || remainingPhotos[0]?.url || "",
-    updatedAt: nowTimestamp(),
-    updatedBy: uid
-  }, { merge: true });
+  return {
+    success: true,
+    albumId,
+    photos
+  };
+}
+
+/* ============================================================================
+ * PHOTO RECORDS
+ * ========================================================================== */
+
+async function handleSaveAlbumPhotos(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
+
+  const albumId = validateDocumentId(
+    data.albumId,
+    'รหัสอัลบั้ม'
+  );
+
+  await requireAlbumAccess(actor, albumId);
+
+  if (!Array.isArray(data.photos)) {
+    fail('invalid-argument', 'รายการรูปภาพไม่ถูกต้อง');
+  }
+
+  if (data.photos.length > CONFIG.MAX_PHOTOS_PER_REQUEST) {
+    fail(
+      'invalid-argument',
+      `บันทึกรูปได้ไม่เกิน ${CONFIG.MAX_PHOTOS_PER_REQUEST} รูปต่อคำขอ`
+    );
+  }
+
+  const albumRef = getCollection(
+    CONFIG.COLLECTIONS.ALBUMS
+  ).doc(albumId);
+
+  const batch = db.batch();
+  let validPhotoCount = 0;
+  let firstPhotoUrl = null;
+
+  for (let index = 0; index < data.photos.length; index++) {
+    const photo = data.photos[index];
+
+    if (!isPlainObject(photo)) {
+      fail('invalid-argument', 'ข้อมูลรูปภาพไม่ถูกต้อง');
+    }
+
+    const url = requiredString(
+      photo.url,
+      'URL รูปภาพ',
+      2000
+    );
+
+    if (!url.startsWith('https://')) {
+      fail(
+        'invalid-argument',
+        'URL รูปภาพต้องเป็น HTTPS'
+      );
+    }
+
+    const photoId = cleanString(photo.id, 200) || makeId();
+
+    const ref = getCollection(
+      CONFIG.COLLECTIONS.PHOTOS
+    ).doc(validateDocumentId(photoId, 'รหัสรูปภาพ'));
+
+    const record = {
+      albumId,
+      organizationId: cleanString(
+        photo.organizationId,
+        200
+      ) || getOrganizationId(actor),
+
+      url,
+      displayUrl: cleanString(
+        photo.displayUrl,
+        2000
+      ) || url,
+
+      thumbnailUrl: cleanString(
+        photo.thumbnailUrl,
+        2000
+      ) || url,
+
+      filename: cleanString(
+        photo.filename,
+        300
+      ) || `photo-${index + 1}`,
+
+      caption: optionalString(photo.caption, 1000),
+
+      order: Number.isFinite(Number(photo.order))
+        ? Math.max(0, Math.trunc(Number(photo.order)))
+        : index,
+
+      status: CONFIG.PHOTO_STATUS.READY,
+
+      createdBy: actor.uid,
+      updatedBy: actor.uid,
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp()
+    };
+
+    assertOrganizationScope(
+      actor,
+      record.organizationId
+    );
+
+    batch.set(ref, record, { merge: true });
+
+    if (!firstPhotoUrl) {
+      firstPhotoUrl = record.displayUrl;
+    }
+
+    validPhotoCount++;
+  }
+
+  if (validPhotoCount > 0) {
+    batch.set(albumRef, {
+      coverUrl: firstPhotoUrl,
+      photoCount: FieldValue.increment(validPhotoCount),
+      updatedAt: serverTimestamp(),
+      updatedBy: actor.uid
+    }, { merge: true });
+  }
 
   await batch.commit();
 
   return {
-    ok: true,
+    success: true,
     albumId,
-    deletedCount: refs.length,
-    message: "ลบรูปภาพแล้ว"
+    savedCount: validPhotoCount,
+    message: 'บันทึกรายการรูปภาพเรียบร้อยแล้ว'
   };
 }
 
-async function actionReorderPhotos(context, payload) {
-  const { uid, profile } = context;
-  requireAdminOrManager(profile);
+async function handleDeletePhotos(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
 
-  const albumId = requireString(payload.albumId, "อัลบั้ม", 256);
-  await ensureAlbumAccess(profile, albumId);
+  const photoIds = assertStringArray(
+    data.photoIds || data.ids,
+    'รายการรูปภาพ',
+    CONFIG.MAX_BATCH_OPERATIONS
+  );
 
-  if (!Array.isArray(payload.photoIds)) {
-    throwInvalid("รายการลำดับรูปภาพไม่ถูกต้อง");
+  if (photoIds.length === 0) {
+    fail('invalid-argument', 'กรุณาเลือกรูปภาพที่ต้องการลบ');
   }
 
-  ensureLimit(payload.photoIds.length, MAX_PHOTOS_PER_ALBUM, "รูปภาพในอัลบั้ม");
+  const photoRefs = photoIds.map((id) =>
+    getCollection(CONFIG.COLLECTIONS.PHOTOS)
+      .doc(validateDocumentId(id, 'รหัสรูปภาพ'))
+  );
 
-  const photoIds = payload.photoIds.map(id => requireString(id, "รหัสรูปภาพ", 256));
+  const snapshots = await db.getAll(...photoRefs);
+
+  const batch = db.batch();
+  const affectedAlbumIds = new Set();
+  let deletedCount = 0;
+
+  for (const snapshot of snapshots) {
+    if (!snapshot.exists) {
+      continue;
+    }
+
+    const photo = snapshot.data();
+
+    assertOrganizationScope(
+      actor,
+      photo.organizationId
+    );
+
+    affectedAlbumIds.add(photo.albumId);
+    batch.delete(snapshot.ref);
+    deletedCount++;
+  }
+
+  await batch.commit();
+
+  for (const albumId of affectedAlbumIds) {
+    const albumRef = getCollection(
+      CONFIG.COLLECTIONS.ALBUMS
+    ).doc(albumId);
+
+    await db.runTransaction(async (transaction) => {
+      const albumSnapshot = await transaction.get(albumRef);
+
+      if (!albumSnapshot.exists) {
+        return;
+      }
+
+      const album = albumSnapshot.data();
+
+      const nextCount = Math.max(
+        0,
+        safeInteger(album.photoCount) - deletedCount
+      );
+
+      transaction.set(albumRef, {
+        photoCount: nextCount,
+        updatedAt: serverTimestamp(),
+        updatedBy: actor.uid
+      }, { merge: true });
+    });
+  }
+
+  return {
+    success: true,
+    deletedCount,
+    message: 'ลบรูปภาพที่เลือกเรียบร้อยแล้ว'
+  };
+}
+
+async function handleReorderPhotos(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
+
+  const albumId = validateDocumentId(
+    data.albumId,
+    'รหัสอัลบั้ม'
+  );
+
+  await requireAlbumAccess(actor, albumId);
+
+  const photoIds = assertStringArray(
+    data.photoIds || data.orderedIds,
+    'ลำดับรูปภาพ',
+    CONFIG.MAX_BATCH_OPERATIONS
+  );
 
   if (new Set(photoIds).size !== photoIds.length) {
-    throwInvalid("รายการรูปภาพมีรหัสซ้ำกัน");
+    fail(
+      'invalid-argument',
+      'พบรหัสรูปภาพซ้ำในรายการเรียงลำดับ'
+    );
   }
 
-  const refs = photoIds.map(id => db.collection(COLLECTIONS.PHOTOS).doc(id));
-  const snapshots = refs.length ? await db.getAll(...refs) : [];
+  const refs = photoIds.map((id) =>
+    getCollection(CONFIG.COLLECTIONS.PHOTOS)
+      .doc(validateDocumentId(id, 'รหัสรูปภาพ'))
+  );
 
-  for (let i = 0; i < snapshots.length; i++) {
-    const snapshot = snapshots[i];
+  const snapshots = await db.getAll(...refs);
 
-    if (!snapshot.exists || snapshot.data().albumId !== albumId) {
-      throwForbidden("รายการมีรูปภาพที่ไม่ได้อยู่ในอัลบั้มนี้");
+  for (let index = 0; index < snapshots.length; index++) {
+    const snapshot = snapshots[index];
+
+    if (!snapshot.exists) {
+      fail(
+        'not-found',
+        `ไม่พบรูปภาพรหัส ${photoIds[index]}`
+      );
     }
+
+    const photo = snapshot.data();
+
+    if (photo.albumId !== albumId) {
+      fail(
+        'permission-denied',
+        'พบรูปภาพที่ไม่ได้อยู่ในอัลบั้มนี้'
+      );
+    }
+
+    assertOrganizationScope(
+      actor,
+      photo.organizationId
+    );
   }
 
-  for (let start = 0; start < refs.length; start += MAX_BATCH_OPERATIONS) {
+  for (const group of chunkArray(
+    snapshots,
+    CONFIG.MAX_BATCH_OPERATIONS
+  )) {
     const batch = db.batch();
 
-    for (let i = start; i < Math.min(start + MAX_BATCH_OPERATIONS, refs.length); i++) {
-      batch.set(refs[i], {
-        order: i,
-        updatedAt: nowTimestamp(),
-        updatedBy: uid
+    for (const snapshot of group) {
+      const index = snapshots.indexOf(snapshot);
+
+      batch.set(snapshot.ref, {
+        order: index,
+        updatedAt: serverTimestamp(),
+        updatedBy: actor.uid
       }, { merge: true });
     }
 
     await batch.commit();
   }
 
-  const first = snapshots[0]?.data();
-
-  await db.collection(COLLECTIONS.ALBUMS).doc(albumId).set({
-    coverUrl: first?.url || "",
-    thumbnailUrl: first?.thumbnailUrl || first?.url || "",
-    photoCount: photoIds.length,
-    updatedAt: nowTimestamp(),
-    updatedBy: uid
-  }, { merge: true });
-
   return {
-    ok: true,
+    success: true,
     albumId,
-    order: photoIds,
-    message: "จัดเรียงรูปภาพแล้ว"
+    count: photoIds.length,
+    message: 'บันทึกลำดับรูปภาพเรียบร้อยแล้ว'
   };
 }
 
-/**
- * ================================================================
- * Organization management
- * ================================================================
- */
+/* ============================================================================
+ * IMAGE UPLOAD ENDPOINT
+ * ========================================================================== */
 
-async function actionSaveOrganization(context, payload) {
-  const { uid, profile } = context;
-  requireAdmin(profile);
+async function handleUploadImage(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
 
-  const name = requireString(payload.name, "ชื่อหน่วยงาน", MAX_NAME_LENGTH);
-  const logoUrl = payload.logoUrl
-    ? normalizeHttpUrl(payload.logoUrl, "URL โลโก้")
-    : "";
+  const purpose = cleanString(
+    data.purpose || data.type,
+    50
+  ).toLowerCase();
 
-  const organizationId = optionalString(payload.organizationId, 256);
-  const now = nowTimestamp();
-  const collection = db.collection(COLLECTIONS.ORGANIZATIONS);
+  const isLogo =
+    purpose === 'logo' ||
+    purpose === 'organization_logo' ||
+    purpose === 'organization-logo';
 
-  if (organizationId) {
-    const ref = collection.doc(organizationId);
-    const snapshot = await ref.get();
+  if (isLogo && !isAdmin(actor)) {
+    fail(
+      'permission-denied',
+      'เฉพาะผู้ดูแลระบบเท่านั้นที่อัปโหลดโลโก้องค์กรได้'
+    );
+  }
 
-    if (!snapshot.exists) {
-      throwNotFound("ไม่พบหน่วยงานที่ต้องการแก้ไข");
-    }
+  let organizationId = cleanString(
+    data.organizationId,
+    200
+  );
 
-    await ref.set({
-      name,
-      logoUrl: logoUrl || snapshot.data().logoUrl || "",
-      updatedAt: now,
-      updatedBy: uid
+  let albumId = cleanString(data.albumId, 200);
+
+  if (isLogo) {
+    organizationId = requiredString(
+      organizationId,
+      'รหัสองค์กร',
+      200
+    );
+
+    assertOrganizationScope(actor, organizationId);
+
+    await getOrganization(organizationId);
+  } else {
+    albumId = requiredString(
+      albumId,
+      'รหัสอัลบั้ม',
+      200
+    );
+
+    const album = await requireAlbumAccess(
+      actor,
+      albumId
+    );
+
+    organizationId = album.organizationId;
+  }
+
+  const mimeType = validateImageMimeType(
+    data.mimeType || data.contentType
+  );
+
+  const base64 = validateImageBase64(
+    data.base64 || data.imageBase64 || data.image
+  );
+
+  const buffer = decodeImageBase64(base64);
+
+  validateImageSignature(buffer, mimeType);
+
+  const filename = cleanString(
+    data.filename || data.name,
+    200
+  ) || `actigallery-${Date.now()}`;
+
+  const uploaded = await uploadBufferToImgBB(
+    buffer,
+    mimeType,
+    filename
+  );
+
+  const photoId = makeId();
+
+  if (isLogo) {
+    const organizationRef = getCollection(
+      CONFIG.COLLECTIONS.ORGANIZATIONS
+    ).doc(organizationId);
+
+    await organizationRef.set({
+      logoUrl: uploaded.displayUrl,
+      logoImageUrl: uploaded.url,
+      updatedAt: serverTimestamp(),
+      updatedBy: actor.uid
     }, { merge: true });
 
     return {
-      ok: true,
+      success: true,
+      purpose: 'logo',
       organizationId,
-      id: organizationId,
-      message: "แก้ไขหน่วยงานแล้ว"
+      url: uploaded.url,
+      displayUrl: uploaded.displayUrl,
+      message: 'อัปโหลดโลโก้องค์กรเรียบร้อยแล้ว'
     };
   }
 
-  const reference = collection.doc();
+  const photoRecord = {
+    albumId,
+    organizationId,
+    url: uploaded.url,
+    displayUrl: uploaded.displayUrl,
+    thumbnailUrl: uploaded.displayUrl,
+    filename,
+    mimeType: uploaded.mimeType,
+    size: uploaded.size,
+    order: Number.isFinite(Number(data.order))
+      ? Math.max(0, Math.trunc(Number(data.order)))
+      : nowMilliseconds(),
 
-  await reference.set({
-    name,
-    logoUrl,
-    createdBy: uid,
-    updatedBy: uid,
-    createdAt: now,
-    updatedAt: now
-  });
+    status: CONFIG.PHOTO_STATUS.READY,
+
+    createdBy: actor.uid,
+    updatedBy: actor.uid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  await getCollection(
+    CONFIG.COLLECTIONS.PHOTOS
+  ).doc(photoId).set(photoRecord);
+
+  await getCollection(
+    CONFIG.COLLECTIONS.ALBUMS
+  ).doc(albumId).set({
+    photoCount: FieldValue.increment(1),
+    updatedAt: serverTimestamp(),
+    updatedBy: actor.uid
+  }, { merge: true });
 
   return {
-    ok: true,
-    organizationId: reference.id,
-    id: reference.id,
-    message: "เพิ่มหน่วยงานแล้ว"
+    success: true,
+    purpose: 'photo',
+    photo: {
+      id: photoId,
+      ...serializeForClient(photoRecord)
+    },
+    url: uploaded.url,
+    displayUrl: uploaded.displayUrl,
+    message: 'อัปโหลดรูปภาพเรียบร้อยแล้ว'
   };
 }
 
-async function actionDeleteOrganization(context, payload) {
-  const { uid, profile } = context;
-  requireAdmin(profile);
+/* ============================================================================
+ * ORGANIZATIONS
+ * ========================================================================== */
 
-  const organizationId = requireString(payload.organizationId, "หน่วยงาน", 256);
-  const reference = db.collection(COLLECTIONS.ORGANIZATIONS).doc(organizationId);
-  const snapshot = await reference.get();
+async function handleSaveOrganization(request) {
+  const actor = await requireAdmin(request);
+  const data = getRequestData(request);
 
-  if (!snapshot.exists) {
-    throwNotFound("ไม่พบหน่วยงานที่ต้องการลบ");
+  const name = requiredString(
+    data.name || data.organizationName,
+    'ชื่อองค์กร',
+    300
+  );
+
+  const id = cleanString(
+    data.id || data.organizationId,
+    200
+  );
+
+  const ref = id
+    ? getCollection(CONFIG.COLLECTIONS.ORGANIZATIONS)
+        .doc(validateDocumentId(id, 'รหัสองค์กร'))
+    : getCollection(CONFIG.COLLECTIONS.ORGANIZATIONS).doc();
+
+  let existing = null;
+
+  if (id) {
+    const snapshot = await ref.get();
+
+    if (!snapshot.exists) {
+      fail(
+        'not-found',
+        'ไม่พบองค์กรที่ต้องการแก้ไข'
+      );
+    }
+
+    existing = snapshot.data();
   }
 
-  const [userSnapshot, albumSnapshot] = await Promise.all([
-    db.collection(COLLECTIONS.USERS)
-      .where("organizationId", "==", organizationId)
+  const organization = {
+    name,
+    description: optionalString(data.description, 2000),
+
+    logoUrl: optionalString(
+      data.logoUrl,
+      2000
+    ) || (existing ? existing.logoUrl || null : null),
+
+    logoImageUrl: optionalString(
+      data.logoImageUrl,
+      2000
+    ) || (existing ? existing.logoImageUrl || null : null),
+
+    status: cleanString(data.status, 50) ||
+      (existing ? existing.status : 'active'),
+
+    createdBy: existing
+      ? existing.createdBy || actor.uid
+      : actor.uid,
+
+    updatedBy: actor.uid,
+    updatedAt: serverTimestamp(),
+
+    createdAt: existing
+      ? existing.createdAt || serverTimestamp()
+      : serverTimestamp()
+  };
+
+  await ref.set(organization, { merge: true });
+
+  return {
+    success: true,
+    id: ref.id,
+    organization: {
+      id: ref.id,
+      ...organization
+    },
+    message: 'บันทึกข้อมูลองค์กรเรียบร้อยแล้ว'
+  };
+}
+
+async function handleDeleteOrganization(request) {
+  const actor = await requireAdmin(request);
+  const data = getRequestData(request);
+
+  const organizationId = validateDocumentId(
+    data.organizationId || data.id,
+    'รหัสองค์กร'
+  );
+
+  const organizationRef = getCollection(
+    CONFIG.COLLECTIONS.ORGANIZATIONS
+  ).doc(organizationId);
+
+  const organizationSnapshot = await organizationRef.get();
+
+  if (!organizationSnapshot.exists) {
+    fail('not-found', 'ไม่พบองค์กรที่ต้องการลบ');
+  }
+
+  const [
+    usersSnapshot,
+    albumsSnapshot,
+    categoriesSnapshot
+  ] = await Promise.all([
+    getCollection(CONFIG.COLLECTIONS.USERS)
+      .where('organizationId', '==', organizationId)
       .limit(1)
       .get(),
-    db.collection(COLLECTIONS.ALBUMS)
-      .where("organizationId", "==", organizationId)
+
+    getCollection(CONFIG.COLLECTIONS.ALBUMS)
+      .where('organizationId', '==', organizationId)
+      .limit(1)
+      .get(),
+
+    getCollection(CONFIG.COLLECTIONS.CATEGORIES)
+      .where('organizationId', '==', organizationId)
       .limit(1)
       .get()
   ]);
 
-  if (!userSnapshot.empty || !albumSnapshot.empty) {
-    throw new HttpsError(
-      "failed-precondition",
-      "ไม่สามารถลบหน่วยงานที่ยังมีผู้ใช้งานหรืออัลบั้มอยู่ได้ กรุณาย้ายหรือลบข้อมูลที่เกี่ยวข้องก่อน"
+  if (
+    !usersSnapshot.empty ||
+    !albumsSnapshot.empty ||
+    !categoriesSnapshot.empty
+  ) {
+    fail(
+      'failed-precondition',
+      'ไม่สามารถลบองค์กรได้ เนื่องจากยังมีผู้ใช้ อัลบั้ม หรือหมวดหมู่ที่เกี่ยวข้อง'
     );
   }
 
-  await reference.delete();
-
-  logger.info("Organization deleted", { organizationId, uid });
+  await organizationRef.delete();
 
   return {
-    ok: true,
+    success: true,
     organizationId,
-    message: "ลบหน่วยงานแล้ว"
+    message: 'ลบองค์กรเรียบร้อยแล้ว'
   };
 }
 
-/**
- * ================================================================
- * Category management
- * ================================================================
- */
+/* ============================================================================
+ * CATEGORIES
+ * ========================================================================== */
 
-async function actionSaveCategory(context, payload) {
-  const { uid, profile } = context;
-  requireAdmin(profile);
+async function handleSaveCategory(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
 
-  const name = requireString(payload.name, "ชื่อหมวดหมู่", MAX_CATEGORY_LENGTH);
-  const categoryId = optionalString(payload.categoryId, 256);
-  const collection = db.collection(COLLECTIONS.CATEGORIES);
-  const now = nowTimestamp();
+  const name = requiredString(
+    data.name || data.categoryName,
+    'ชื่อหมวดหมู่',
+    200
+  );
 
-  if (categoryId) {
-    const ref = collection.doc(categoryId);
+  const organizationId = isAdmin(actor)
+    ? requiredString(data.organizationId, 'องค์กร', 200)
+    : getOrganizationId(actor);
+
+  assertOrganizationScope(actor, organizationId);
+
+  await getOrganization(organizationId);
+
+  const id = cleanString(
+    data.id || data.categoryId,
+    200
+  );
+
+  const ref = id
+    ? getCollection(CONFIG.COLLECTIONS.CATEGORIES)
+        .doc(validateDocumentId(id, 'รหัสหมวดหมู่'))
+    : getCollection(CONFIG.COLLECTIONS.CATEGORIES).doc();
+
+  let existing = null;
+
+  if (id) {
     const snapshot = await ref.get();
 
     if (!snapshot.exists) {
-      throwNotFound("ไม่พบหมวดหมู่ที่ต้องการแก้ไข");
+      fail(
+        'not-found',
+        'ไม่พบหมวดหมู่ที่ต้องการแก้ไข'
+      );
     }
 
-    await ref.set({
-      name,
-      updatedAt: now,
-      updatedBy: uid
-    }, { merge: true });
+    existing = snapshot.data();
 
-    /*
-     * ปรับชื่อหมวดหมู่ที่เก็บไว้ในอัลบั้มด้วย
-     */
-    const albumSnapshot = await db.collection(COLLECTIONS.ALBUMS)
-      .where("categoryId", "==", categoryId)
-      .get();
-
-    for (let start = 0; start < albumSnapshot.docs.length; start += MAX_BATCH_OPERATIONS) {
-      const batch = db.batch();
-
-      for (const albumDoc of albumSnapshot.docs.slice(start, start + MAX_BATCH_OPERATIONS)) {
-        batch.set(albumDoc.ref, {
-          categoryName: name,
-          updatedAt: now
-        }, { merge: true });
-      }
-
-      await batch.commit();
-    }
-
-    return {
-      ok: true,
-      categoryId,
-      id: categoryId,
-      message: "แก้ไขหมวดหมู่แล้ว"
-    };
+    assertOrganizationScope(
+      actor,
+      existing.organizationId
+    );
   }
 
-  const reference = collection.doc();
-
-  await reference.set({
+  const category = {
     name,
-    createdBy: uid,
-    updatedBy: uid,
-    createdAt: now,
-    updatedAt: now
-  });
-
-  return {
-    ok: true,
-    categoryId: reference.id,
-    id: reference.id,
-    message: "เพิ่มหมวดหมู่แล้ว"
-  };
-}
-
-async function actionDeleteCategory(context, payload) {
-  const { uid, profile } = context;
-  requireAdmin(profile);
-
-  const categoryId = requireString(payload.categoryId, "หมวดหมู่", 256);
-  const reference = db.collection(COLLECTIONS.CATEGORIES).doc(categoryId);
-  const snapshot = await reference.get();
-
-  if (!snapshot.exists) {
-    throwNotFound("ไม่พบหมวดหมู่ที่ต้องการลบ");
-  }
-
-  const albumSnapshot = await db.collection(COLLECTIONS.ALBUMS)
-    .where("categoryId", "==", categoryId)
-    .limit(1)
-    .get();
-
-  if (!albumSnapshot.empty) {
-    throw new HttpsError(
-      "failed-precondition",
-      "ไม่สามารถลบหมวดหมู่ที่ยังถูกใช้งานในอัลบั้มได้"
-    );
-  }
-
-  await reference.delete();
-
-  logger.info("Category deleted", { categoryId, uid });
-
-  return {
-    ok: true,
-    categoryId,
-    message: "ลบหมวดหมู่แล้ว"
-  };
-}
-
-/**
- * ================================================================
- * User management
- * ================================================================
- */
-
-async function ensureUsernameAvailable(username, exceptUid = "") {
-  const normalized = normalizeUsername(username);
-
-  const snapshot = await db.collection(COLLECTIONS.USERS)
-    .where("username", "==", normalized)
-    .limit(2)
-    .get();
-
-  const conflict = snapshot.docs.some(doc => doc.id !== exceptUid);
-
-  if (conflict) {
-    throwConflict("ชื่อผู้ใช้นี้ถูกใช้แล้ว กรุณาเลือกชื่ออื่น");
-  }
-
-  return normalized;
-}
-
-async function actionCreateUser(context, payload) {
-  const { uid, profile } = context;
-  requireAdmin(profile);
-
-  const fullName = requireString(payload.fullName, "ชื่อ-สกุล", 150);
-  const username = await ensureUsernameAvailable(payload.username);
-  const organizationId = requireString(payload.organizationId, "หน่วยงาน", 256);
-  const organization = await getOrganization(organizationId);
-
-  /*
-   * หาก Frontend ส่ง password มา ระบบจะใช้รหัสผ่านนั้น
-   * หากไม่ส่ง ระบบจะสร้างรหัสผ่านเริ่มต้น GF + เลข 6 หลัก
-   *
-   * การสร้างบัญชีจริงต้องทำผ่าน Firebase Admin SDK
-   * และจะไม่บันทึกรหัสผ่านแบบข้อความธรรมดาใน Firestore
-   */
-  const generatedPassword = payload.password
-    ? null
-    : makeGeneratedPassword();
-
-  const password = validatePassword(payload.password || generatedPassword);
-  const email = usernameToAuthEmail(username);
-
-  let authUser = null;
-
-  try {
-    authUser = await auth.createUser({
-      email,
-      password,
-      displayName: fullName,
-      disabled: false,
-      emailVerified: true
-    });
-  } catch (error) {
-    if (error.code === "auth/email-already-exists") {
-      throwConflict("ชื่อผู้ใช้นี้มีบัญชี Firebase อยู่แล้ว");
-    }
-
-    if (error.code === "auth/invalid-password") {
-      throwInvalid("รหัสผ่านไม่ผ่านเงื่อนไขความปลอดภัยของ Firebase");
-    }
-
-    logger.error("Unable to create Firebase Auth user", {
-      code: error.code || "unknown"
-    });
-
-    throwFailed("สร้างบัญชีเข้าสู่ระบบไม่สำเร็จ");
-  }
-
-  const now = nowTimestamp();
-
-  try {
-    await db.collection(COLLECTIONS.USERS).doc(authUser.uid).set({
-      uid: authUser.uid,
-      fullName,
-      name: fullName,
-      username,
-      email,
-      role: ROLE_ALBUM_MANAGER,
-      organizationId: organization.id,
-      organizationName: organization.name || "",
-      disabled: false,
-      createdBy: uid,
-      updatedBy: uid,
-      createdAt: now,
-      updatedAt: now
-    });
-  } catch (error) {
-    /*
-     * หากบันทึกโปรไฟล์ล้มเหลว ให้ลบบัญชี Auth ที่เพิ่งสร้าง
-     * เพื่อลดโอกาสเกิดบัญชีที่เข้าสู่ระบบได้แต่ไม่มีสิทธิ์
-     */
-    try {
-      await auth.deleteUser(authUser.uid);
-    } catch (cleanupError) {
-      logger.error("Failed to clean up orphaned Auth user", {
-        uid: authUser.uid,
-        code: cleanupError.code || "unknown"
-      });
-    }
-
-    throw error;
-  }
-
-  logger.info("Album manager created", {
-    uid: authUser.uid,
-    username,
+    description: optionalString(data.description, 1000),
     organizationId,
-    createdBy: uid
-  });
+
+    createdBy: existing
+      ? existing.createdBy || actor.uid
+      : actor.uid,
+
+    updatedBy: actor.uid,
+    updatedAt: serverTimestamp(),
+
+    createdAt: existing
+      ? existing.createdAt || serverTimestamp()
+      : serverTimestamp()
+  };
+
+  await ref.set(category, { merge: true });
 
   return {
-    ok: true,
-    userId: authUser.uid,
-    id: authUser.uid,
-    username,
-    generatedPassword: generatedPassword || undefined,
-    message: "เพิ่มผู้ใช้งานแล้ว"
+    success: true,
+    id: ref.id,
+    category: {
+      id: ref.id,
+      ...category
+    },
+    message: 'บันทึกหมวดหมู่เรียบร้อยแล้ว'
   };
 }
 
-async function actionUpdateUser(context, payload) {
-  const { uid, profile } = context;
-  requireAdmin(profile);
+async function handleDeleteCategory(request) {
+  const actor = await requireAlbumManagerOrAdmin(request);
+  const data = getRequestData(request);
 
-  const userId = requireString(payload.userId, "ผู้ใช้งาน", 256);
-  const fullName = requireString(payload.fullName, "ชื่อ-สกุล", 150);
-  const organizationId = requireString(payload.organizationId, "หน่วยงาน", 256);
+  const categoryId = validateDocumentId(
+    data.categoryId || data.id,
+    'รหัสหมวดหมู่'
+  );
 
-  const organization = await getOrganization(organizationId);
-  const reference = db.collection(COLLECTIONS.USERS).doc(userId);
-  const snapshot = await reference.get();
+  const categoryRef = getCollection(
+    CONFIG.COLLECTIONS.CATEGORIES
+  ).doc(categoryId);
 
-  if (!snapshot.exists) {
-    throwNotFound("ไม่พบผู้ใช้งานที่ต้องการแก้ไข");
+  const categorySnapshot = await categoryRef.get();
+
+  if (!categorySnapshot.exists) {
+    fail('not-found', 'ไม่พบหมวดหมู่ที่ต้องการลบ');
   }
 
-  const existing = snapshot.data();
+  const category = categorySnapshot.data();
 
-  if (existing.role === ROLE_ADMIN && existing.uid !== uid) {
-    throwForbidden("ไม่สามารถแก้ไขบัญชีผู้ดูแลระบบอื่นผ่านเมนูนี้ได้");
-  }
+  assertOrganizationScope(
+    actor,
+    category.organizationId
+  );
 
-  const update = {
-    fullName,
-    name: fullName,
-    organizationId: organization.id,
-    organizationName: organization.name || "",
-    updatedAt: nowTimestamp(),
-    updatedBy: uid
-  };
-
-  if (payload.password !== undefined && payload.password !== null && payload.password !== "") {
-    const password = validatePassword(payload.password);
-
-    try {
-      await auth.updateUser(userId, {
-        password,
-        displayName: fullName
-      });
-    } catch (error) {
-      logger.error("Unable to update user password", {
-        uid: userId,
-        code: error.code || "unknown"
-      });
-
-      throwFailed("เปลี่ยนรหัสผ่านไม่สำเร็จ");
-    }
-  } else {
-    try {
-      await auth.updateUser(userId, {
-        displayName: fullName
-      });
-    } catch (error) {
-      logger.error("Unable to update user display name", {
-        uid: userId,
-        code: error.code || "unknown"
-      });
-
-      throwFailed("แก้ไขข้อมูลบัญชีเข้าสู่ระบบไม่สำเร็จ");
-    }
-  }
-
-  await reference.set(update, { merge: true });
-
-  return {
-    ok: true,
-    userId,
-    message: "แก้ไขผู้ใช้งานแล้ว"
-  };
-}
-
-/**
- * ================================================================
- * ImgBB image upload
- * ================================================================
- */
-
-function validateBase64Image(base64) {
-  if (typeof base64 !== "string" || !base64.length) {
-    throwInvalid("ไม่พบข้อมูลรูปภาพ");
-  }
-
-  if (base64.length > MAX_BASE64_LENGTH) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "รูปภาพมีขนาดใหญ่เกินกำหนด กรุณาลดขนาดไฟล์แล้วลองใหม่"
-    );
-  }
-
-  const normalized = base64.replace(/\s/g, "");
-
-  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(normalized)) {
-    throwInvalid("ข้อมูลรูปภาพ Base64 ไม่ถูกต้อง");
-  }
-
-  const buffer = Buffer.from(normalized, "base64");
-
-  if (!buffer.length) {
-    throwInvalid("ไม่สามารถอ่านข้อมูลรูปภาพได้");
-  }
-
-  if (buffer.length > MAX_IMAGE_BYTES) {
-    throw new HttpsError(
-      "resource-exhausted",
-      `รูปภาพต้องมีขนาดไม่เกิน ${Math.floor(MAX_IMAGE_BYTES / 1024 / 1024)} MB`
-    );
-  }
-
-  return {
-    base64: normalized,
-    buffer
-  };
-}
-
-async function sendImageToImgBB({ apiKey, base64, fileName }) {
-  const params = new URLSearchParams();
-
-  params.set("key", apiKey);
-  params.set("image", base64);
-  params.set("name", fileName.replace(/[^\w.-]/g, "_").slice(0, 180));
-
-  let response;
-
-  try {
-    response = await fetch(IMG_BB_UPLOAD_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: params,
-      signal: AbortSignal.timeout(120000)
-    });
-  } catch (error) {
-    logger.error("ImgBB network request failed", {
-      message: error.message || "network error"
-    });
-
-    throw new HttpsError(
-      "unavailable",
-      "ไม่สามารถเชื่อมต่อบริการอัปโหลดรูปภาพได้ กรุณาลองใหม่"
-    );
-  }
-
-  let body;
-
-  try {
-    body = await response.json();
-  } catch {
-    throw new HttpsError(
-      "unavailable",
-      "บริการอัปโหลดรูปภาพส่งข้อมูลกลับมาไม่ถูกต้อง"
-    );
-  }
-
-  if (!response.ok || body?.success !== true || !body?.data?.url) {
-    logger.error("ImgBB upload rejected", {
-      status: response.status,
-      error: body?.error?.message || "upload rejected"
-    });
-
-    throw new HttpsError(
-      "internal",
-      body?.error?.message || "อัปโหลดรูปภาพไปยัง ImgBB ไม่สำเร็จ"
-    );
-  }
-
-  return {
-    url: body.data.url,
-    displayUrl: body.data.display_url || body.data.url,
-    thumbnailUrl: body.data.thumb?.url || body.data.medium?.url || body.data.url,
-    deleteUrl: body.data.delete_url || "",
-    imageId: body.data.id || "",
-    fileName: body.data.image?.filename || "",
-    mimeType: body.data.image?.mime || "",
-    size: Number(body.data.size || 0)
-  };
-}
-
-async function actionUploadImage(request) {
-  const { uid, profile } = await requireUser(request);
-  requireAdminOrManager(profile);
-
-  const payload = requireObject(request.data || {}, "ข้อมูลอัปโหลด");
-
-  const purpose = requireString(payload.purpose, "ประเภทการอัปโหลด", 20)
-    .toLowerCase();
-
-  if (!["photo", "logo"].includes(purpose)) {
-    throwInvalid("ประเภทการอัปโหลดไม่ถูกต้อง");
-  }
-
-  if (purpose === "logo") {
-    requireAdmin(profile);
-  }
-
-  const fileName = requireString(payload.fileName, "ชื่อไฟล์", 255);
-  const mimeType = normalizeImageMimeType(payload.mimeType);
-  const checkedImage = validateBase64Image(payload.base64);
-
-  let album = null;
-
-  if (purpose === "photo") {
-    const albumId = requireString(payload.albumId, "อัลบั้ม", 256);
-    album = await ensureAlbumAccess(profile, albumId);
-  }
-
-  const apiKey = IMGBB_API_KEY.value();
-
-  if (!apiKey || apiKey.trim().length < 10) {
-    logger.error("ImgBB API key is missing");
-    throwFailed("ยังไม่ได้ตั้งค่า ImgBB API key ใน Secret Manager");
-  }
-
-  const result = await sendImageToImgBB({
-    apiKey,
-    base64: checkedImage.base64,
-    fileName
-  });
-
-  logger.info("Image uploaded to ImgBB", {
-    uid,
-    purpose,
-    albumId: album?.id || null,
-    fileName,
-    size: checkedImage.buffer.length
-  });
-
-  /*
-   * ฟังก์ชันนี้ส่ง URL กลับไปให้ dashboard.html
-   * การสร้าง/ปรับลำดับ photo document ทำใน saveAlbumPhotos
-   * เพื่อให้การบันทึกรายการรูปและลำดับทำงานร่วมกัน
-   */
-  return {
-    ok: true,
-    purpose,
-    url: result.url,
-    imageUrl: result.url,
-    displayUrl: result.displayUrl,
-    thumbnailUrl: result.thumbnailUrl,
-    imageId: result.imageId,
-    fileName: result.fileName || fileName,
-    mimeType: result.mimeType || mimeType,
-    size: result.size,
-    message: "อัปโหลดรูปภาพสำเร็จ"
-  };
-}
-
-/**
- * ================================================================
- * One-time administrator bootstrap
- * ================================================================
- *
- * Invoke this callable only during initial setup.
- *
- * Required payload:
- * {
- *   "bootstrapKey": "THE_SECRET_VALUE",
- *   "username": "your_admin_username",
- *   "password": "your_strong_password",
- *   "fullName": "Administrator"
- * }
- *
- * The BOOTSTRAP_KEY must be configured as a Firebase Secret.
- *
- * This function refuses to create an administrator if an admin
- * profile already exists. Keep the secret private.
- * ================================================================
- */
-
-async function actionBootstrapAdmin(request) {
-  const payload = requireObject(request.data || {}, "ข้อมูล Bootstrap");
-
-  const suppliedKey = requireString(payload.bootstrapKey, "Bootstrap key", 512);
-  const expectedKey = BOOTSTRAP_KEY.value();
-
-  if (!expectedKey || !constantTimeSecretCompare(suppliedKey, expectedKey)) {
-    throwForbidden("Bootstrap key ไม่ถูกต้อง");
-  }
-
-  const adminSnapshot = await db.collection(COLLECTIONS.USERS)
-    .where("role", "==", ROLE_ADMIN)
+  const albumsSnapshot = await getCollection(
+    CONFIG.COLLECTIONS.ALBUMS
+  )
+    .where('categoryId', '==', categoryId)
     .limit(1)
     .get();
 
-  if (!adminSnapshot.empty) {
-    throw new HttpsError(
-      "failed-precondition",
-      "มีบัญชีผู้ดูแลระบบอยู่แล้ว ไม่สามารถใช้ Bootstrap ซ้ำได้"
+  if (!albumsSnapshot.empty) {
+    fail(
+      'failed-precondition',
+      'ไม่สามารถลบหมวดหมู่นี้ได้ เพราะยังมีอัลบั้มใช้งานอยู่'
     );
   }
 
-  const username = await ensureUsernameAvailable(payload.username);
-  const fullName = requireString(payload.fullName || "ผู้ดูแลระบบ", "ชื่อ-สกุล", 150);
-  const password = validatePassword(payload.password);
-  const email = usernameToAuthEmail(username);
+  await categoryRef.delete();
 
-  let authUser;
+  return {
+    success: true,
+    categoryId,
+    message: 'ลบหมวดหมู่เรียบร้อยแล้ว'
+  };
+}
+
+/* ============================================================================
+ * USERS
+ * ========================================================================== */
+
+async function generateNextInitialPassword() {
+  const snapshot = await getCollection(
+    CONFIG.COLLECTIONS.USERS
+  )
+    .orderBy('createdAt', 'desc')
+    .limit(CONFIG.MAX_LIST_LIMIT)
+    .get();
+
+  let maxNumber = 0;
+
+  for (const doc of snapshot.docs) {
+    const username = cleanString(
+      doc.data().username,
+      100
+    );
+
+    const match = username.match(/^GF(\d{6})$/i);
+
+    if (match) {
+      maxNumber = Math.max(
+        maxNumber,
+        Number(match[1])
+      );
+    }
+  }
+
+  return makeInitialPassword(maxNumber + 1);
+}
+
+async function handleCreateUser(request) {
+  const actor = await requireAdmin(request);
+  const data = getRequestData(request);
+
+  const fullName = requiredString(
+    data.fullName || data.name,
+    'ชื่อ-นามสกุล',
+    300
+  );
+
+  const username = validateUsername(data.username);
+
+  const email = usernameToEmail(username);
+
+  const role = normalizeRole(
+    data.role || CONFIG.ROLES.ALBUM_MANAGER
+  );
+
+  const organizationId = requiredString(
+    data.organizationId,
+    'องค์กร',
+    200
+  );
+
+  await getOrganization(organizationId);
+
+  let password = cleanString(data.password, 128);
+
+  if (!password) {
+    password = await generateNextInitialPassword();
+  } else {
+    password = validatePassword(password);
+  }
+
+  const existingProfile = await getCollection(
+    CONFIG.COLLECTIONS.USERS
+  )
+    .where('username', '==', username)
+    .limit(1)
+    .get();
+
+  if (!existingProfile.empty) {
+    fail(
+      'already-exists',
+      'ชื่อผู้ใช้นี้ถูกใช้แล้ว'
+    );
+  }
+
+  let userRecord;
 
   try {
-    authUser = await auth.createUser({
+    userRecord = await auth.createUser({
       email,
       password,
       displayName: fullName,
-      emailVerified: true,
       disabled: false
     });
   } catch (error) {
-    if (error.code === "auth/email-already-exists") {
-      throwConflict("ชื่อผู้ใช้นี้มีบัญชี Firebase อยู่แล้ว");
-    }
-
-    logger.error("Bootstrap Auth account creation failed", {
-      code: error.code || "unknown"
+    logger.error('Firebase Auth createUser failed', {
+      code: error?.code || null,
+      message: error?.message || null
     });
 
-    throwFailed("สร้างบัญชีผู้ดูแลระบบไม่สำเร็จ");
+    if (
+      error.code === 'auth/email-already-exists'
+    ) {
+      fail(
+        'already-exists',
+        'ชื่อผู้ใช้นี้ถูกใช้แล้ว'
+      );
+    }
+
+    if (
+      error.code === 'auth/invalid-password'
+    ) {
+      fail(
+        'invalid-argument',
+        'รหัสผ่านไม่เป็นไปตามข้อกำหนดของ Firebase'
+      );
+    }
+
+    fail(
+      'internal',
+      'สร้างบัญชีผู้ใช้ไม่สำเร็จ'
+    );
   }
+
+  const profile = {
+    uid: userRecord.uid,
+    fullName,
+    name: fullName,
+    username,
+    email,
+    role,
+    organizationId,
+    status: CONFIG.USER_STATUS.ACTIVE,
+    mustChangePassword: true,
+
+    createdBy: actor.uid,
+    updatedBy: actor.uid,
+
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
 
   try {
-    await db.collection(COLLECTIONS.USERS).doc(authUser.uid).set({
-      uid: authUser.uid,
-      fullName,
-      name: fullName,
-      username,
-      email,
-      role: ROLE_ADMIN,
-      organizationId: "",
-      organizationName: "ผู้ดูแลระบบ",
-      disabled: false,
-      createdBy: "bootstrap",
-      updatedBy: "bootstrap",
-      createdAt: nowTimestamp(),
-      updatedAt: nowTimestamp()
-    });
+    await getCollection(
+      CONFIG.COLLECTIONS.USERS
+    )
+      .doc(userRecord.uid)
+      .set(profile);
   } catch (error) {
     try {
-      await auth.deleteUser(authUser.uid);
-    } catch (cleanupError) {
-      logger.error("Bootstrap cleanup failed", {
-        uid: authUser.uid,
-        code: cleanupError.code || "unknown"
-      });
+      await auth.deleteUser(userRecord.uid);
+    } catch (rollbackError) {
+      logger.error(
+        'Could not roll back Auth account after Firestore failure',
+        {
+          uid: userRecord.uid,
+          message: rollbackError?.message || null
+        }
+      );
     }
 
-    throw error;
+    logger.error('Failed to save user profile', {
+      uid: userRecord.uid,
+      message: error?.message || null
+    });
+
+    fail(
+      'internal',
+      'สร้างข้อมูลผู้ใช้ไม่สำเร็จ'
+    );
   }
 
-  logger.warn("Initial administrator created", {
-    uid: authUser.uid,
+  return {
+    success: true,
+    user: {
+      uid: userRecord.uid,
+      fullName,
+      username,
+      email,
+      role,
+      organizationId,
+      status: CONFIG.USER_STATUS.ACTIVE
+    },
+    initialPassword: password,
+    mustChangePassword: true,
+    message: 'สร้างบัญชีผู้ใช้เรียบร้อยแล้ว'
+  };
+}
+
+async function handleUpdateUser(request) {
+  const actor = await requireAdmin(request);
+  const data = getRequestData(request);
+
+  const uid = requiredString(
+    data.uid || data.userId,
+    'รหัสผู้ใช้',
+    200
+  );
+
+  const userRef = getCollection(
+    CONFIG.COLLECTIONS.USERS
+  ).doc(uid);
+
+  const userSnapshot = await userRef.get();
+
+  if (!userSnapshot.exists) {
+    fail('not-found', 'ไม่พบผู้ใช้ที่ต้องการแก้ไข');
+  }
+
+  const existing = userSnapshot.data();
+
+  const updates = {
+    updatedBy: actor.uid,
+    updatedAt: serverTimestamp()
+  };
+
+  if (data.fullName !== undefined || data.name !== undefined) {
+    const fullName = requiredString(
+      data.fullName || data.name,
+      'ชื่อ-นามสกุล',
+      300
+    );
+
+    updates.fullName = fullName;
+    updates.name = fullName;
+
+    await auth.updateUser(uid, {
+      displayName: fullName
+    });
+  }
+
+  if (data.organizationId !== undefined) {
+    const organizationId = requiredString(
+      data.organizationId,
+      'องค์กร',
+      200
+    );
+
+    await getOrganization(organizationId);
+
+    updates.organizationId = organizationId;
+  }
+
+  if (data.role !== undefined) {
+    updates.role = normalizeRole(data.role);
+  }
+
+  if (data.status !== undefined) {
+    const status = normalizeStatus(
+      data.status,
+      [
+        CONFIG.USER_STATUS.ACTIVE,
+        CONFIG.USER_STATUS.DISABLED
+      ],
+      'สถานะผู้ใช้'
+    );
+
+    updates.status = status;
+
+    await auth.updateUser(uid, {
+      disabled: status === CONFIG.USER_STATUS.DISABLED
+    });
+  }
+
+  if (data.password !== undefined && data.password !== '') {
+    const password = validatePassword(data.password);
+
+    await auth.updateUser(uid, { password });
+
+    updates.mustChangePassword = true;
+  }
+
+  if (
+    data.username !== undefined &&
+    normalizeUsername(data.username) !== existing.username
+  ) {
+    fail(
+      'failed-precondition',
+      'การเปลี่ยนชื่อผู้ใช้หลังสร้างบัญชียังไม่รองรับ'
+    );
+  }
+
+  await userRef.set(updates, { merge: true });
+
+  const updatedSnapshot = await userRef.get();
+
+  return {
+    success: true,
+    user: serializeProfile({
+      uid,
+      ...updatedSnapshot.data()
+    }),
+    message: 'แก้ไขข้อมูลผู้ใช้เรียบร้อยแล้ว'
+  };
+}
+
+/* ============================================================================
+ * BOOTSTRAP ADMIN
+ *
+ * This endpoint creates the first administrator.
+ * It requires BOOTSTRAP_KEY and refuses to run if an admin already exists.
+ * After initialization, remove or rotate BOOTSTRAP_KEY.
+ * ========================================================================== */
+
+async function handleBootstrapAdmin(request) {
+  const data = getRequestData(request);
+
+  const suppliedKey = requiredString(
+    data.bootstrapKey,
+    'รหัสเริ่มต้นระบบ',
+    500
+  );
+
+  const expectedKey = cleanString(
+    BOOTSTRAP_KEY.value(),
+    500
+  );
+
+  if (!expectedKey) {
+    fail(
+      'failed-precondition',
+      'ยังไม่ได้กำหนด BOOTSTRAP_KEY ใน Secret Manager'
+    );
+  }
+
+  const suppliedBuffer = Buffer.from(suppliedKey);
+  const expectedBuffer = Buffer.from(expectedKey);
+
+  if (
+    suppliedBuffer.length !== expectedBuffer.length ||
+    !crypto.timingSafeEqual(suppliedBuffer, expectedBuffer)
+  ) {
+    fail(
+      'permission-denied',
+      'รหัสเริ่มต้นระบบไม่ถูกต้อง'
+    );
+  }
+
+  const existingAdminSnapshot = await getCollection(
+    CONFIG.COLLECTIONS.USERS
+  )
+    .where('role', '==', CONFIG.ROLES.ADMIN)
+    .limit(1)
+    .get();
+
+  if (!existingAdminSnapshot.empty) {
+    fail(
+      'already-exists',
+      'ระบบมีผู้ดูแลระบบแล้ว ไม่สามารถเริ่มต้นซ้ำได้'
+    );
+  }
+
+  const username = validateUsername(
+    data.username || 'admin'
+  );
+
+  const fullName = requiredString(
+    data.fullName || 'System Administrator',
+    'ชื่อผู้ดูแลระบบ',
+    300
+  );
+
+  const password = validatePassword(data.password);
+  const email = usernameToEmail(username);
+
+  let userRecord;
+
+  try {
+    userRecord = await auth.createUser({
+      email,
+      password,
+      displayName: fullName,
+      disabled: false
+    });
+  } catch (error) {
+    logger.error('Bootstrap Auth creation failed', {
+      code: error?.code || null,
+      message: error?.message || null
+    });
+
+    if (error.code === 'auth/email-already-exists') {
+      fail(
+        'already-exists',
+        'ชื่อผู้ใช้นี้มีอยู่แล้วใน Firebase Authentication'
+      );
+    }
+
+    fail(
+      'internal',
+      'สร้างบัญชีผู้ดูแลระบบไม่สำเร็จ'
+    );
+  }
+
+  const profile = {
+    uid: userRecord.uid,
+    fullName,
+    name: fullName,
+    username,
+    email,
+    role: CONFIG.ROLES.ADMIN,
+    organizationId: null,
+    status: CONFIG.USER_STATUS.ACTIVE,
+    mustChangePassword: true,
+
+    createdBy: 'bootstrap',
+    updatedBy: 'bootstrap',
+
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  try {
+    await getCollection(
+      CONFIG.COLLECTIONS.USERS
+    )
+      .doc(userRecord.uid)
+      .set(profile);
+  } catch (error) {
+    try {
+      await auth.deleteUser(userRecord.uid);
+    } catch (rollbackError) {
+      logger.error(
+        'Bootstrap rollback failed',
+        {
+          uid: userRecord.uid,
+          message: rollbackError?.message || null
+        }
+      );
+    }
+
+    fail(
+      'internal',
+      'บันทึกข้อมูลผู้ดูแลระบบไม่สำเร็จ'
+    );
+  }
+
+  logger.warn('ActiGallery bootstrap admin created', {
+    uid: userRecord.uid,
     username
   });
 
   return {
-    ok: true,
-    userId: authUser.uid,
+    success: true,
+    uid: userRecord.uid,
     username,
-    message: "สร้างบัญชีผู้ดูแลระบบเริ่มต้นแล้ว"
+    email,
+    role: CONFIG.ROLES.ADMIN,
+    message: 'สร้างบัญชีผู้ดูแลระบบเรียบร้อยแล้ว'
   };
 }
 
-/**
- * ================================================================
- * dashboardApi action router
- * ================================================================
- */
+/* ============================================================================
+ * PUBLIC GALLERY
+ *
+ * Read-only public endpoint.
+ * Only published albums and ready photos are returned.
+ * ========================================================================== */
 
-const API_ACTIONS = Object.freeze({
-  dashboardInit: actionDashboardInit,
-  saveAlbum: actionSaveAlbum,
-  publishAlbum: actionPublishAlbum,
-  deleteAlbum: actionDeleteAlbum,
-  listAlbumPhotos: actionListAlbumPhotos,
-  saveAlbumPhotos: actionSaveAlbumPhotos,
-  deletePhotos: actionDeletePhotos,
-  reorderPhotos: actionReorderPhotos,
-  saveOrganization: actionSaveOrganization,
-  deleteOrganization: actionDeleteOrganization,
-  saveCategory: actionSaveCategory,
-  deleteCategory: actionDeleteCategory,
-  createUser: actionCreateUser,
-  updateUser: actionUpdateUser
-});
-
-exports.dashboardApi = onCall(
+exports.publicGallery = onCall(
   {
     region: REGION,
-    timeoutSeconds: 300,
-    memory: "1GiB",
+    maxInstances: 10,
     enforceAppCheck: false
   },
   async (request) => {
-    const payload = requireObject(request.data || {}, "ข้อมูลคำขอ");
-    const action = requireString(payload.action, "action", 100);
-
-    const handler = API_ACTIONS[action];
-
-    if (typeof handler !== "function") {
-      throw new HttpsError(
-        "invalid-argument",
-        `ไม่รู้จักคำสั่ง ${action}`
-      );
-    }
-
-    const context = await requireUser(request);
-
     try {
-      const result = await handler(context, payload);
+      const data = isPlainObject(request.data)
+        ? request.data
+        : {};
+
+      const organizationId = cleanString(
+        data.organizationId,
+        200
+      );
+
+      const categoryId = cleanString(
+        data.categoryId,
+        200
+      );
+
+      const albumId = cleanString(
+        data.albumId,
+        200
+      );
+
+      let albumQuery = getCollection(
+        CONFIG.COLLECTIONS.ALBUMS
+      ).where(
+        'status',
+        '==',
+        CONFIG.ALBUM_STATUS.PUBLISHED
+      );
+
+      if (organizationId) {
+        albumQuery = albumQuery.where(
+          'organizationId',
+          '==',
+          organizationId
+        );
+      }
+
+      if (categoryId) {
+        albumQuery = albumQuery.where(
+          'categoryId',
+          '==',
+          categoryId
+        );
+      }
+
+      if (albumId) {
+        albumQuery = albumQuery.where(
+          admin.firestore.FieldPath.documentId(),
+          '==',
+          albumId
+        );
+      }
+
+      const albumSnapshot = await albumQuery
+        .limit(CONFIG.MAX_LIST_LIMIT)
+        .get();
+
+      const albums = albumSnapshot.docs.map(
+        serializeDocument
+      );
+
+      const albumIds = albums.map((album) => album.id);
+
+      let photos = [];
+
+      for (const chunk of chunkArray(albumIds, 30)) {
+        if (chunk.length === 0) {
+          continue;
+        }
+
+        const photoSnapshot = await getCollection(
+          CONFIG.COLLECTIONS.PHOTOS
+        )
+          .where('albumId', 'in', chunk)
+          .where(
+            'status',
+            '==',
+            CONFIG.PHOTO_STATUS.READY
+          )
+          .limit(CONFIG.MAX_LIST_LIMIT)
+          .get();
+
+        photos.push(
+          ...photoSnapshot.docs.map(serializeDocument)
+        );
+      }
+
+      photos.sort((a, b) => {
+        return safeInteger(a.order) - safeInteger(b.order);
+      });
+
+      const organizationIds = [
+        ...new Set(
+          albums
+            .map((album) => album.organizationId)
+            .filter(Boolean)
+        )
+      ];
+
+      const organizations = [];
+
+      for (const id of organizationIds) {
+        const snapshot = await getCollection(
+          CONFIG.COLLECTIONS.ORGANIZATIONS
+        )
+          .doc(id)
+          .get();
+
+        if (snapshot.exists) {
+          organizations.push(serializeDocument(snapshot));
+        }
+      }
+
+      const categoryIds = [
+        ...new Set(
+          albums
+            .map((album) => album.categoryId)
+            .filter(Boolean)
+        )
+      ];
+
+      const categories = [];
+
+      for (const id of categoryIds) {
+        const snapshot = await getCollection(
+          CONFIG.COLLECTIONS.CATEGORIES
+        )
+          .doc(id)
+          .get();
+
+        if (snapshot.exists) {
+          categories.push(serializeDocument(snapshot));
+        }
+      }
 
       return {
-        ok: true,
-        ...result
+        success: true,
+        albums,
+        photos,
+        organizations,
+        categories
       };
     } catch (error) {
       if (error instanceof HttpsError) {
         throw error;
       }
 
-      logger.error("dashboardApi action failed", {
-        action,
-        uid: context.uid,
-        role: context.profile.role,
-        code: error.code || "unknown",
-        message: error.message || "unknown error"
+      logger.error('Public gallery request failed', {
+        message: error?.message || null
       });
 
-      throw new HttpsError(
-        "internal",
-        "ระบบไม่สามารถดำเนินการได้ กรุณาลองใหม่อีกครั้ง"
+      fail(
+        'internal',
+        'ไม่สามารถโหลดข้อมูลแกลเลอรีได้'
       );
     }
   }
 );
 
-/**
- * ================================================================
- * Image upload callable
- * ================================================================
- */
+/* ============================================================================
+ * MAIN DASHBOARD API
+ * ========================================================================== */
+
+exports.dashboardApi = onCall(
+  {
+    region: REGION,
+    maxInstances: 10,
+    enforceAppCheck: false
+  },
+  async (request) => {
+    const data = getRequestData(request);
+    const action = getAction(data);
+
+    try {
+      switch (action) {
+        case 'dashboardInit':
+          return await handleDashboardInit(request);
+
+        case 'saveAlbum':
+          return await handleSaveAlbum(request);
+
+        case 'publishAlbum':
+          return await handlePublishAlbum(request);
+
+        case 'deleteAlbum':
+          return await handleDeleteAlbum(request);
+
+        case 'listAlbumPhotos':
+          return await handleListAlbumPhotos(request);
+
+        case 'saveAlbumPhotos':
+          return await handleSaveAlbumPhotos(request);
+
+        case 'deletePhotos':
+          return await handleDeletePhotos(request);
+
+        case 'reorderPhotos':
+          return await handleReorderPhotos(request);
+
+        case 'saveOrganization':
+          return await handleSaveOrganization(request);
+
+        case 'deleteOrganization':
+          return await handleDeleteOrganization(request);
+
+        case 'saveCategory':
+          return await handleSaveCategory(request);
+
+        case 'deleteCategory':
+          return await handleDeleteCategory(request);
+
+        case 'createUser':
+          return await handleCreateUser(request);
+
+        case 'updateUser':
+          return await handleUpdateUser(request);
+
+        default:
+          fail(
+            'invalid-argument',
+            `ไม่รู้จักคำสั่ง: ${action}`
+          );
+      }
+    } catch (error) {
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      logger.error('dashboardApi request failed', {
+        action,
+        uid: request.auth?.uid || null,
+        message: error?.message || null,
+        code: error?.code || null
+      });
+
+      fail(
+        'internal',
+        'เกิดข้อผิดพลาดภายในระบบ กรุณาลองใหม่อีกครั้ง'
+      );
+    }
+  }
+);
+
+/* ============================================================================
+ * IMAGE UPLOAD API
+ * ========================================================================== */
 
 exports.uploadImage = onCall(
   {
     region: REGION,
-    timeoutSeconds: 180,
-    memory: "1GiB",
     secrets: [IMGBB_API_KEY],
+    maxInstances: 10,
+    timeoutSeconds: 120,
+    memory: '512MiB',
     enforceAppCheck: false
   },
   async (request) => {
     try {
-      return await actionUploadImage(request);
+      return await handleUploadImage(request);
     } catch (error) {
       if (error instanceof HttpsError) {
         throw error;
       }
 
-      logger.error("uploadImage failed", {
+      logger.error('uploadImage request failed', {
         uid: request.auth?.uid || null,
-        code: error.code || "unknown",
-        message: error.message || "unknown error"
+        message: error?.message || null,
+        code: error?.code || null
       });
 
-      throw new HttpsError(
-        "internal",
-        "อัปโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่"
+      fail(
+        'internal',
+        'อัปโหลดรูปภาพไม่สำเร็จ'
       );
     }
   }
 );
 
-/**
- * ================================================================
- * Bootstrap callable
- * ================================================================
- */
+/* ============================================================================
+ * FIRST ADMIN BOOTSTRAP API
+ * ========================================================================== */
 
 exports.bootstrapAdmin = onCall(
   {
     region: REGION,
-    timeoutSeconds: 120,
-    memory: "512MiB",
     secrets: [BOOTSTRAP_KEY],
+    maxInstances: 1,
     enforceAppCheck: false
   },
   async (request) => {
     try {
-      return await actionBootstrapAdmin(request);
+      return await handleBootstrapAdmin(request);
     } catch (error) {
       if (error instanceof HttpsError) {
         throw error;
       }
 
-      logger.error("bootstrapAdmin failed", {
-        code: error.code || "unknown",
-        message: error.message || "unknown error"
+      logger.error('bootstrapAdmin failed', {
+        message: error?.message || null,
+        code: error?.code || null
       });
 
-      throw new HttpsError(
-        "internal",
-        "สร้างบัญชีผู้ดูแลระบบไม่สำเร็จ"
+      fail(
+        'internal',
+        'เริ่มต้นระบบไม่สำเร็จ'
       );
     }
+  }
+);
+
+/* ============================================================================
+ * PASSWORD CHANGE API
+ *
+ * Firebase Authentication does not expose the current user's password to
+ * Cloud Functions. Password changes must use Firebase client SDK
+ * reauthentication/updatePassword in the browser.
+ *
+ * This endpoint only clears the mustChangePassword flag after the client has
+ * successfully changed the password and obtained a fresh ID token.
+ *
+ * Do not call this endpoint before the actual password change succeeds.
+ * ========================================================================== */
+
+exports.markPasswordChanged = onCall(
+  {
+    region: REGION,
+    maxInstances: 10,
+    enforceAppCheck: false
+  },
+  async (request) => {
+    const actor = await requireSignedIn(request);
+
+    await getCollection(
+      CONFIG.COLLECTIONS.USERS
+    )
+      .doc(actor.uid)
+      .set({
+        mustChangePassword: false,
+        updatedAt: serverTimestamp(),
+        updatedBy: actor.uid
+      }, { merge: true });
+
+    return {
+      success: true,
+      message: 'อัปเดตสถานะรหัสผ่านเรียบร้อยแล้ว'
+    };
+  }
+);
+
+/* ============================================================================
+ * HEALTH CHECK
+ * ========================================================================== */
+
+exports.healthCheck = onCall(
+  {
+    region: REGION,
+    maxInstances: 5,
+    enforceAppCheck: false
+  },
+  async () => {
+    return {
+      success: true,
+      appName: CONFIG.APP_NAME,
+      version: CONFIG.VERSION,
+      region: CONFIG.REGION,
+      timestamp: new Date().toISOString()
+    };
   }
 );
