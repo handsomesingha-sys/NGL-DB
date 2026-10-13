@@ -1,330 +1,82 @@
+
 rules_version = '2';
+
+/*
+ * ============================================================
+ * ActiGallery - Firestore Security Rules
+ * Version: 1.0.0
+ *
+ * Architecture:
+ *   Frontend       -> Firebase Callable Functions
+ *   Cloud Functions -> Firebase Admin SDK -> Firestore
+ *
+ * Collections:
+ *   users
+ *   organizations
+ *   categories
+ *   albums
+ *   photos
+ *   system
+ *
+ * Security policy:
+ *   - Deny all direct client reads and writes.
+ *   - All access must pass through Cloud Functions.
+ *   - Cloud Functions must validate authentication,
+ *     authorization, input data, and resource ownership.
+ *   - Firebase Admin SDK bypasses Firestore Security Rules.
+ * ============================================================
+ */
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /* =========================================================
-       ActiGallery Firestore Security Rules
-       Version: 3.0.0
-
-       Collections:
-         users
-         organizations
-         categories
-         albums
-         photos
-
-       Roles:
-         admin
-         album_manager
-
-       Security policy:
-         - Public visitors can read published albums.
-         - Public visitors can read photos belonging to published albums.
-         - Authenticated users can read their own user profile.
-         - Administrators and album managers access data through
-           authorized Cloud Functions.
-         - Client-side direct writes are denied.
-         - Passwords must never be stored in Firestore.
-       ========================================================= */
-
-    /* =========================================================
-       COMMON HELPERS
-       ========================================================= */
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function currentUid() {
-      return request.auth.uid;
-    }
-
-    function userProfileExists() {
-      return isSignedIn()
-        && exists(
-          /databases/$(database)/documents/users/$(currentUid())
-        );
-    }
-
-    function currentUserProfile() {
-      return get(
-        /databases/$(database)/documents/users/$(currentUid())
-      ).data;
-    }
-
-    function isActiveUser() {
-      return userProfileExists()
-        && currentUserProfile().status == 'active';
-    }
-
-    function isAdmin() {
-      return isActiveUser()
-        && currentUserProfile().role == 'admin';
-    }
-
-    function isAlbumManager() {
-      return isActiveUser()
-        && currentUserProfile().role == 'album_manager';
-    }
-
-    function isAuthorizedStaff() {
-      return isAdmin() || isAlbumManager();
-    }
-
-    function currentOrganizationId() {
-      return isActiveUser()
-        && currentUserProfile().organizationId is string
-        ? currentUserProfile().organizationId
-        : '';
-    }
-
-    function belongsToOrganization(organizationId) {
-      return isAdmin()
-        || (
-          isAlbumManager()
-          && currentOrganizationId() == organizationId
-        );
-    }
-
-    /* =========================================================
-       ORGANIZATION HELPERS
-       ========================================================= */
-
-    function organizationExists(organizationId) {
-      return exists(
-        /databases/$(database)/documents/organizations/$(organizationId)
-      );
-    }
-
-    function getOrganizationData(organizationId) {
-      return get(
-        /databases/$(database)/documents/organizations/$(organizationId)
-      ).data;
-    }
-
-    /* =========================================================
-       ALBUM HELPERS
-       ========================================================= */
-
-    function albumExists(albumId) {
-      return exists(
-        /databases/$(database)/documents/albums/$(albumId)
-      );
-    }
-
-    function getAlbumData(albumId) {
-      return get(
-        /databases/$(database)/documents/albums/$(albumId)
-      ).data;
-    }
-
-    function isPublishedAlbum(albumId) {
-      return albumExists(albumId)
-        && getAlbumData(albumId).status == 'published';
-    }
-
-    function canReadAlbum(albumId) {
-      return isPublishedAlbum(albumId)
-        || (
-          isAuthorizedStaff()
-          && albumExists(albumId)
-          && belongsToOrganization(
-            getAlbumData(albumId).organizationId
-          )
-        );
-    }
-
-    function canManageAlbum(albumId) {
-      return isAuthorizedStaff()
-        && albumExists(albumId)
-        && belongsToOrganization(
-          getAlbumData(albumId).organizationId
-        );
-    }
-
-    /* =========================================================
-       USER PROFILES
-       ========================================================= */
-
+    /*
+     * User accounts and roles.
+     * Includes admin and album_manager profiles.
+     */
     match /users/{userId} {
-
-      /*
-       * Users may read their own profile.
-       * Administrators may read all user profiles.
-       * Album managers cannot list or read other users' profiles
-       * directly through the client.
-       */
-
-      allow get: if isSignedIn()
-        && (
-          currentUid() == userId
-          || isAdmin()
-        );
-
-      allow list: if isAdmin();
-
-      /*
-       * All profile creation, updates and deletion must go through
-       * Cloud Functions using Firebase Admin SDK.
-       */
-
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow read, write: if false;
     }
-
-    /* =========================================================
-       ORGANIZATIONS
-       ========================================================= */
-
-    match /organizations/{organizationId} {
-
-      /*
-       * Organization information is publicly readable because
-       * public gallery pages may display organization names/logos.
-       *
-       * If the project later stores private organization data,
-       * move that data into a separate private collection.
-       */
-
-      allow get: if true;
-
-      allow list: if true;
-
-      /*
-       * All organization management must go through Cloud Functions.
-       */
-
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /* =========================================================
-       CATEGORIES
-       ========================================================= */
-
-    match /categories/{categoryId} {
-
-      /*
-       * Category names are used for public album browsing.
-       * Category writes are handled by the authorized backend.
-       */
-
-      allow get: if true;
-
-      allow list: if true;
-
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /* =========================================================
-       ALBUMS
-       ========================================================= */
-
-    match /albums/{albumId} {
-
-      /*
-       * Public visitors can read published albums.
-       * Authorized staff may read albums within their organization.
-       *
-       * Firestore Rules are not filters: public queries must include
-       * a condition that guarantees status == 'published'.
-       */
-
-      allow get: if
-        (
-          resource.data.status == 'published'
-        )
-        || (
-          isAuthorizedStaff()
-          && belongsToOrganization(
-            resource.data.organizationId
-          )
-        );
-
-      allow list: if
-        (
-          resource.data.status == 'published'
-        )
-        || (
-          isAuthorizedStaff()
-          && belongsToOrganization(
-            resource.data.organizationId
-          )
-        );
-
-      /*
-       * Album creation, publication, updates and deletion are
-       * performed by Cloud Functions after authorization checks.
-       */
-
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /* =========================================================
-       PHOTOS
-       ========================================================= */
-
-    match /photos/{photoId} {
-
-      /*
-       * A public visitor may read a photo only when:
-       *   1. The photo is ready.
-       *   2. Its parent album exists.
-       *   3. Its parent album is published.
-       *
-       * Authorized staff may read photos belonging to albums
-       * in their own organization.
-       */
-
-      allow get: if
-        (
-          resource.data.status == 'ready'
-          && isPublishedAlbum(resource.data.albumId)
-        )
-        || (
-          isAuthorizedStaff()
-          && canManageAlbum(resource.data.albumId)
-        );
-
-      allow list: if
-        (
-          resource.data.status == 'ready'
-          && isPublishedAlbum(resource.data.albumId)
-        )
-        || (
-          isAuthorizedStaff()
-          && canManageAlbum(resource.data.albumId)
-        );
-
-      /*
-       * Uploading, editing, reordering and deleting photo records
-       * must go through Cloud Functions.
-       *
-       * ImgBB storage permissions are separate from Firestore Rules.
-       */
-
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /* =========================================================
-       DEFAULT DENY
-       ========================================================= */
 
     /*
-     * Any collection not explicitly listed above is denied.
-     * These rules intentionally do not provide a broad fallback
-     * permission to all authenticated users.
+     * Organization information and logos.
      */
+    match /organizations/{organizationId} {
+      allow read, write: if false;
+    }
 
+    /*
+     * Activity album categories.
+     */
+    match /categories/{categoryId} {
+      allow read, write: if false;
+    }
+
+    /*
+     * Activity albums and publication status.
+     */
+    match /albums/{albumId} {
+      allow read, write: if false;
+    }
+
+    /*
+     * Photo metadata and album photo ordering.
+     */
+    match /photos/{photoId} {
+      allow read, write: if false;
+    }
+
+    /*
+     * System settings and internal configuration.
+     */
+    match /system/{documentId} {
+      allow read, write: if false;
+    }
+
+    /*
+     * Default-deny policy for every other collection,
+     * nested document, and future collection.
+     */
     match /{document=**} {
       allow read, write: if false;
     }
