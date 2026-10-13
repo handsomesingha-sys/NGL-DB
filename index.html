@@ -1,3044 +1,2485 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#123b63">
-  <meta name="description" content="AnonMessage Administration Panel">
-  <title>ศูนย์จัดการระบบ | AnonMessage</title>
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=TH+Sarabun+New:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-
-  <style>
-    :root {
-      --primary: #123b63;
-      --primary-dark: #0b2946;
-      --primary-light: #eaf2fa;
-      --accent: #2563eb;
-      --success: #15803d;
-      --success-bg: #dcfce7;
-      --warning: #b45309;
-      --warning-bg: #fef3c7;
-      --danger: #b91c1c;
-      --danger-bg: #fee2e2;
-      --text: #1e293b;
-      --muted: #64748b;
-      --border: #e2e8f0;
-      --surface: #ffffff;
-      --background: #f4f7fb;
-      --sidebar-width: 255px;
-      --radius: 14px;
-      --shadow: 0 5px 22px rgba(15, 23, 42, .06);
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      margin: 0;
-      background: var(--background);
-      color: var(--text);
-      font-family: "TH Sarabun New", sans-serif;
-      font-size: 19px;
-      line-height: 1.35;
-    }
-
-    button,
-    input,
-    select,
-    textarea {
-      font: inherit;
-    }
-
-    button {
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .muted {
-      color: var(--muted);
-    }
-
-    .small {
-      font-size: 16px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: 700;
-      font-size: 25px;
-    }
-
-    .brand-icon {
-      display: grid;
-      place-items: center;
-      width: 44px;
-      height: 44px;
-      border-radius: 13px;
-      color: white;
-      background: linear-gradient(135deg, #2563eb, #123b63);
-      flex-shrink: 0;
-    }
-
-    .login-screen {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      background:
-        radial-gradient(circle at 15% 10%, rgba(59,130,246,.14), transparent 32%),
-        radial-gradient(circle at 90% 90%, rgba(18,59,99,.12), transparent 32%),
-        var(--background);
-    }
-
-    .login-card {
-      width: 100%;
-      max-width: 460px;
-      padding: 36px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 22px;
-      box-shadow: 0 20px 60px rgba(15,23,42,.10);
-      text-align: center;
-    }
-
-    .login-logo {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-
-    .login-logo .brand-icon {
-      width: 68px;
-      height: 68px;
-      font-size: 30px;
-      border-radius: 20px;
-    }
-
-    .login-card h1 {
-      margin: 0 0 8px;
-      font-size: 31px;
-      color: var(--primary);
-    }
-
-    .login-card p {
-      margin: 0 0 24px;
-      color: var(--muted);
-    }
-
-    .login-notice {
-      margin-top: 20px;
-      padding: 12px;
-      border-radius: 10px;
-      background: var(--primary-light);
-      color: var(--primary);
-      text-align: left;
-      font-size: 17px;
-    }
-
-    #googleSignInButton {
-      display: flex;
-      justify-content: center;
-      min-height: 44px;
-    }
-
-    .login-error {
-      margin-top: 14px;
-      padding: 12px;
-      border-radius: 10px;
-      color: var(--danger);
-      background: var(--danger-bg);
-      text-align: left;
-      overflow-wrap: anywhere;
-    }
-
-    .app-layout {
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      position: fixed;
-      z-index: 30;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      display: flex;
-      flex-direction: column;
-      width: var(--sidebar-width);
-      color: #e2e8f0;
-      background: var(--primary-dark);
-      overflow-y: auto;
-      transition: transform .25s ease;
-    }
-
-    .sidebar-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-height: 82px;
-      padding: 18px;
-      border-bottom: 1px solid rgba(255,255,255,.12);
-    }
-
-    .sidebar-brand .brand-icon {
-      color: var(--primary-dark);
-      background: #fff;
-    }
-
-    .sidebar-brand .brand-text {
-      font-size: 24px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .sidebar-subtitle {
-      display: block;
-      font-size: 15px;
-      font-weight: 400;
-      color: #cbd5e1;
-    }
-
-    .sidebar-section {
-      padding: 18px 14px 6px;
-      color: #94a3b8;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: .04em;
-    }
-
-    .nav-menu {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      padding: 5px 12px 18px;
-    }
-
-    .nav-button {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 12px 14px;
-      color: #dbe5f0;
-      background: transparent;
-      border: 0;
-      border-radius: 10px;
-      text-align: left;
-      transition: background .15s ease, color .15s ease;
-    }
-
-    .nav-button i {
-      width: 22px;
-      text-align: center;
-      font-size: 18px;
-    }
-
-    .nav-button:hover {
-      background: rgba(255,255,255,.09);
-      color: #fff;
-    }
-
-    .nav-button.active {
-      background: #fff;
-      color: var(--primary);
-      font-weight: 700;
-    }
-
-    .sidebar-bottom {
-      margin-top: auto;
-      padding: 14px;
-      border-top: 1px solid rgba(255,255,255,.12);
-    }
-
-    .sidebar-user {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-      margin-bottom: 12px;
-    }
-
-    .avatar {
-      display: grid;
-      place-items: center;
-      width: 40px;
-      height: 40px;
-      flex-shrink: 0;
-      overflow: hidden;
-      border-radius: 50%;
-      color: var(--primary);
-      background: #e2e8f0;
-      font-weight: 700;
-    }
-
-    .avatar img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .sidebar-user-info {
-      min-width: 0;
-    }
-
-    .sidebar-user-info strong,
-    .sidebar-user-info span {
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .sidebar-user-info strong {
-      color: white;
-    }
-
-    .sidebar-user-info span {
-      color: #cbd5e1;
-      font-size: 15px;
-    }
-
-    .sidebar-logout {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid rgba(255,255,255,.2);
-      border-radius: 9px;
-      color: white;
-      background: rgba(255,255,255,.06);
-    }
-
-    .sidebar-logout:hover {
-      background: rgba(255,255,255,.13);
-    }
-
-    .main-area {
-      min-height: 100vh;
-      margin-left: var(--sidebar-width);
-    }
-
-    .topbar {
-      position: sticky;
-      z-index: 20;
-      top: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      min-height: 76px;
-      padding: 14px 28px;
-      background: rgba(255,255,255,.94);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-    }
-
-    .topbar-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
-    .topbar h1 {
-      margin: 0;
-      color: var(--primary);
-      font-size: 27px;
-    }
-
-    .topbar-subtitle {
-      margin-top: 1px;
-      color: var(--muted);
-      font-size: 16px;
-    }
-
-    .icon-button {
-      display: inline-grid;
-      place-items: center;
-      width: 42px;
-      height: 42px;
-      color: var(--primary);
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-    }
-
-    .mobile-menu-button {
-      display: none;
-    }
-
-    .main-content {
-      max-width: 1600px;
-      margin: 0 auto;
-      padding: 28px;
-    }
-
-    .page-view {
-      display: none;
-    }
-
-    .page-view.active {
-      display: block;
-      animation: fadeIn .18s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .page-heading {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 22px;
-    }
-
-    .page-heading h2 {
-      margin: 0 0 4px;
-      color: var(--primary);
-      font-size: 27px;
-    }
-
-    .page-heading p {
-      margin: 0;
-      color: var(--muted);
-    }
-
-    .card {
-      min-width: 0;
-      padding: 22px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
-
-    .card + .card {
-      margin-top: 20px;
-    }
-
-    .card-heading {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .card-heading h3 {
-      margin: 0;
-      font-size: 23px;
-      color: var(--primary);
-    }
-
-    .stat-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 16px;
-      margin-bottom: 22px;
-    }
-
-    .stat-card {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
-      padding: 20px;
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
-
-    .stat-icon {
-      display: grid;
-      place-items: center;
-      width: 50px;
-      height: 50px;
-      flex-shrink: 0;
-      border-radius: 14px;
-      font-size: 21px;
-    }
-
-    .stat-icon.blue {
-      color: #1d4ed8;
-      background: #dbeafe;
-    }
-
-    .stat-icon.green {
-      color: #166534;
-      background: #dcfce7;
-    }
-
-    .stat-icon.orange {
-      color: #9a3412;
-      background: #ffedd5;
-    }
-
-    .stat-icon.purple {
-      color: #6b21a8;
-      background: #f3e8ff;
-    }
-
-    .stat-label {
-      color: var(--muted);
-      font-size: 17px;
-    }
-
-    .stat-value {
-      margin-top: 2px;
-      font-size: 30px;
-      font-weight: 700;
-      line-height: 1.1;
-      color: var(--primary);
-      overflow-wrap: anywhere;
-    }
-
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      gap: 12px;
-      margin-bottom: 18px;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      min-width: 0;
-    }
-
-    .field label {
-      color: #334155;
-      font-weight: 600;
-    }
-
-    .field input,
-    .field select,
-    .field textarea {
-      width: 100%;
-      min-height: 43px;
-      padding: 9px 12px;
-      color: var(--text);
-      background: white;
-      border: 1px solid #cbd5e1;
-      border-radius: 9px;
-      outline: none;
-    }
-
-    .field input:focus,
-    .field select:focus,
-    .field textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
-    }
-
-    .search-field {
-      flex: 1 1 260px;
-    }
-
-    .filter-field {
-      flex: 0 1 200px;
-    }
-
-    .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 42px;
-      padding: 9px 15px;
-      border: 1px solid transparent;
-      border-radius: 9px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: .15s ease;
-    }
-
-    .button-primary {
-      color: white;
-      background: var(--primary);
-    }
-
-    .button-primary:hover {
-      background: var(--primary-dark);
-    }
-
-    .button-secondary {
-      color: var(--primary);
-      background: white;
-      border-color: #cbd5e1;
-    }
-
-    .button-secondary:hover {
-      background: #f1f5f9;
-    }
-
-    .button-danger {
-      color: white;
-      background: #b91c1c;
-    }
-
-    .button-danger:hover {
-      background: #991b1b;
-    }
-
-    .button-warning {
-      color: #78350f;
-      background: #fef3c7;
-      border-color: #fde68a;
-    }
-
-    .button-success {
-      color: white;
-      background: #15803d;
-    }
-
-    .button-small {
-      min-height: 34px;
-      padding: 5px 10px;
-      font-size: 16px;
-    }
-
-    .button-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 7px;
-    }
-
-    .table-wrap {
-      width: 100%;
-      overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      text-align: left;
-    }
-
-    th,
-    td {
-      padding: 12px 13px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
-
-    th {
-      color: #334155;
-      background: #f8fafc;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    tbody tr:last-child td {
-      border-bottom: 0;
-    }
-
-    tbody tr:hover {
-      background: #f8fafc;
-    }
-
-    td {
-      overflow-wrap: anywhere;
-    }
-
-    .table-primary {
-      font-weight: 700;
-      color: var(--primary);
-    }
-
-    .table-secondary {
-      color: var(--muted);
-      font-size: 16px;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 9px;
-      border-radius: 999px;
-      font-size: 15px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .badge-active,
-    .badge-resolved,
-    .badge-success {
-      color: #166534;
-      background: var(--success-bg);
-    }
-
-    .badge-suspended,
-    .badge-dismissed,
-    .badge-danger {
-      color: #991b1b;
-      background: var(--danger-bg);
-    }
-
-    .badge-pending,
-    .badge-warning {
-      color: #92400e;
-      background: var(--warning-bg);
-    }
-
-    .badge-neutral {
-      color: #475569;
-      background: #e2e8f0;
-    }
-
-    .empty-state {
-      padding: 34px 18px;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    .empty-state i {
-      display: block;
-      margin-bottom: 10px;
-      font-size: 34px;
-      color: #94a3b8;
-    }
-
-    .empty-state strong {
-      display: block;
-      color: var(--text);
-      font-size: 21px;
-    }
-
-    .loading-state {
-      padding: 32px;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    .loading-state i {
-      margin-right: 8px;
-    }
-
-    .pagination {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .pagination-controls {
-      display: flex;
-      gap: 7px;
-    }
-
-    .pagination-controls button {
-      min-width: 40px;
-    }
-
-    .content-box {
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      background: #f8fafc;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-
-    .message-preview {
-      max-width: 450px;
-      max-height: 180px;
-      overflow: auto;
-    }
-
-    .media-preview {
-      display: block;
-      max-width: 180px;
-      max-height: 140px;
-      margin-top: 8px;
-      border-radius: 8px;
-      object-fit: contain;
-    }
-
-    .two-column {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-    }
-
-    .info-list {
-      display: grid;
-      grid-template-columns: minmax(120px, 180px) 1fr;
-      gap: 10px 14px;
-      margin: 0;
-    }
-
-    .info-list dt {
-      color: var(--muted);
-    }
-
-    .info-list dd {
-      margin: 0;
-      overflow-wrap: anywhere;
-    }
-
-    .notice {
-      padding: 13px 15px;
-      margin-bottom: 16px;
-      border-radius: 10px;
-      border: 1px solid #bfdbfe;
-      background: #eff6ff;
-      color: #1e40af;
-    }
-
-    .footer-note {
-      margin-top: 28px;
-      padding: 18px 0 6px;
-      color: var(--muted);
-      text-align: center;
-      font-size: 16px;
-    }
-
-    .mobile-overlay {
-      display: none;
-    }
-
-    .toast-area {
-      position: fixed;
-      z-index: 100;
-      right: 18px;
-      bottom: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .toast {
-      max-width: min(420px, calc(100vw - 36px));
-      padding: 12px 16px;
-      color: white;
-      background: #334155;
-      border-radius: 10px;
-      box-shadow: var(--shadow);
-    }
-
-    .toast.success {
-      background: #166534;
-    }
-
-    .toast.error {
-      background: #991b1b;
-    }
-
-    @media (max-width: 1200px) {
-      .stat-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .main-content {
-        padding: 22px;
-      }
-    }
-
-    @media (max-width: 800px) {
-      :root {
-        --sidebar-width: 270px;
-      }
-
-      .sidebar {
-        transform: translateX(-100%);
-      }
-
-      .sidebar.open {
-        transform: translateX(0);
-      }
-
-      .mobile-overlay.show {
-        display: block;
-        position: fixed;
-        z-index: 25;
-        inset: 0;
-        background: rgba(15,23,42,.5);
-      }
-
-      .main-area {
-        margin-left: 0;
-      }
-
-      .mobile-menu-button {
-        display: inline-grid;
-      }
-
-      .topbar {
-        padding: 12px 16px;
-      }
-
-      .main-content {
-        padding: 16px;
-      }
-
-      .two-column {
-        grid-template-columns: 1fr;
-      }
-
-      .page-heading {
-        flex-direction: column;
-      }
-
-      .card {
-        padding: 16px;
-      }
-    }
-
-    @media (max-width: 520px) {
-      .stat-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-
-      .stat-card {
-        padding: 13px;
-        gap: 9px;
-        align-items: flex-start;
-      }
-
-      .stat-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        font-size: 17px;
-      }
-
-      .stat-value {
-        font-size: 25px;
-      }
-
-      .stat-label {
-        font-size: 15px;
-      }
-
-      .topbar h1 {
-        font-size: 23px;
-      }
-
-      .topbar-subtitle {
-        display: none;
-      }
-
-      .login-card {
-        padding: 25px 18px;
-      }
-
-      .toolbar .field,
-      .toolbar .button {
-        width: 100%;
-      }
-
-      .info-list {
-        grid-template-columns: 1fr;
-        gap: 2px;
-      }
-
-      .info-list dd {
-        margin-bottom: 9px;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2447a8">
+<meta name="description" content="ActiGallery ระบบจัดการคลังภาพกิจกรรม">
+<title>ActiGallery | ระบบจัดการ</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink:#172033;
+  --muted:#748095;
+  --line:#e5eaf2;
+  --brand:#2447a8;
+  --brand-light:#eaf0ff;
+  --bg:#f5f7fb;
+  --danger:#b42332;
+  --success:#16734f;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  font-family:"IBM Plex Sans Thai",sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+}
+button,input,select,textarea { font:inherit; }
+button { cursor:pointer; }
+button:disabled { opacity:.55; cursor:not-allowed; }
+.hidden { display:none!important; }
+.muted { color:var(--muted); }
+.brand {
+  font-size:22px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.mark {
+  width:40px;
+  height:40px;
+  border-radius:12px;
+  background:#ffffff20;
+  display:grid;
+  place-items:center;
+  font-size:13px;
+  font-weight:700;
+}
+.login {
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  background:#fff;
+}
+.loginHero {
+  padding:7%;
+  background:linear-gradient(145deg,#172554,#294ba6 65%,#5d7be4);
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.loginHero h1 {
+  font-size:clamp(30px,4vw,48px);
+  line-height:1.35;
+}
+.loginHero p { color:#dce5ff; line-height:1.9; }
+.loginPanel { display:grid; place-items:center; padding:25px; }
+.loginForm { width:min(100%,420px); }
+.loginForm h2 { font-size:28px; margin-bottom:5px; }
+.field { display:grid; gap:7px; margin:14px 0; }
+.field label { font-size:13px; font-weight:600; }
+.field input,.field textarea,.field select {
+  width:100%;
+  padding:11px 12px;
+  border:1px solid #dbe1eb;
+  border-radius:10px;
+  outline:none;
+  background:white;
+  min-width:0;
+  color:var(--ink);
+}
+.field textarea { min-height:85px; resize:vertical; }
+.field input:focus,.field textarea:focus,.field select:focus {
+  border-color:#7d94e7;
+  box-shadow:0 0 0 3px #3159ce18;
+}
+.btn {
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:10px;
+  padding:9px 13px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  color:var(--ink);
+}
+.btn:hover:not(:disabled) { background:#f4f6fa; }
+.btn.primary { background:var(--brand); color:white; border-color:var(--brand); }
+.btn.primary:hover:not(:disabled) { background:#193987; }
+.btn.danger { color:var(--danger); background:#fff7f7; border-color:#f1d6d9; }
+.btn.block { width:100%; padding:12px; }
+.help {
+  border:0;
+  background:none;
+  color:#3154bd;
+  text-decoration:underline;
+  padding:9px 0;
+  font-size:13px;
+}
+.shell {
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:245px 1fr;
+}
+.side {
+  height:100vh;
+  position:sticky;
+  top:0;
+  background:#172554;
+  color:#fff;
+  padding:20px 13px;
+  display:flex;
+  flex-direction:column;
+  overflow:auto;
+}
+.side .brand { padding:0 9px 24px; font-size:20px; }
+.navLabel {
+  font-size:10px;
+  color:#b1c0ea;
+  padding:12px 11px 6px;
+  letter-spacing:.12em;
+}
+.nav {
+  width:100%;
+  text-align:left;
+  border:0;
+  background:transparent;
+  color:#dce4ff;
+  border-radius:9px;
+  padding:11px;
+  display:flex;
+  gap:11px;
+  align-items:center;
+  margin:2px 0;
+  font-size:14px;
+}
+.nav.active,.nav:hover { background:#ffffff20; color:white; }
+.sidefoot {
+  margin-top:auto;
+  border-top:1px solid #ffffff20;
+  padding:14px 10px;
+  font-size:12px;
+  color:#bac8ed;
+}
+.main { min-width:0; }
+.top {
+  min-height:73px;
+  position:sticky;
+  top:0;
+  z-index:5;
+  background:white;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 25px;
+  gap:12px;
+}
+.topTitle { font-weight:700; }
+.profile { display:flex; align-items:center; gap:9px; font-size:12px; }
+.avatar {
+  width:39px;
+  height:39px;
+  border-radius:50%;
+  background:#eaf0ff;
+  color:#3154bd;
+  display:grid;
+  place-items:center;
+  font-size:17px;
+}
+.content { max-width:1500px; margin:auto; padding:25px; }
+.pagehead {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  margin-bottom:20px;
+}
+.pagehead h1 { font-size:25px; margin:0 0 3px; }
+.pagehead p { font-size:13px; color:var(--muted); margin:0; }
+.stats {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:13px;
+  margin-bottom:20px;
+}
+.stat,.panel {
+  background:white;
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 9px 28px #17255408;
+}
+.stat { padding:17px; }
+.statLabel { color:var(--muted); font-size:13px; }
+.stat b { display:block; font-size:28px; margin-top:9px; }
+.panel { overflow:hidden; margin-bottom:18px; }
+.panelhead {
+  padding:15px 18px;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.panelhead h3 { font-size:16px; margin:0; }
+.tablewrap { overflow:auto; }
+table { width:100%; border-collapse:collapse; min-width:650px; }
+th,td {
+  text-align:left;
+  padding:12px 15px;
+  border-bottom:1px solid #edf0f5;
+  font-size:13px;
+  vertical-align:middle;
+}
+th { background:#fafbfe; color:var(--muted); font-weight:600; }
+tr:last-child td { border:0; }
+.tag {
+  display:inline-block;
+  padding:4px 9px;
+  border-radius:20px;
+  background:#e8f8ef;
+  color:#16734f;
+  font-size:11px;
+}
+.tag.red { background:#fff0f0; color:#b52c3b; }
+.tag.blue { background:#eaf0ff; color:#2447a8; }
+.toolbar { display:flex; gap:9px; flex-wrap:wrap; margin-bottom:14px; }
+.toolbar input {
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  min-width:220px;
+}
+.empty { text-align:center; color:var(--muted); padding:35px; }
+.modal {
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:20;
+  background:#0d1729aa;
+  align-items:center;
+  justify-content:center;
+  padding:14px;
+}
+.modal.open { display:flex; }
+.modalbox {
+  width:min(100%,720px);
+  max-height:94vh;
+  overflow:auto;
+  background:white;
+  border-radius:16px;
+}
+.modalhead {
+  padding:16px 19px;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  position:sticky;
+  top:0;
+  background:white;
+  z-index:2;
+}
+.modalhead h2 { font-size:19px; margin:0; }
+.modalbody { padding:19px; }
+.modalfoot {
+  padding:14px 19px;
+  border-top:1px solid var(--line);
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  position:sticky;
+  bottom:0;
+  background:white;
+}
+.formgrid { display:grid; grid-template-columns:1fr 1fr; gap:0 13px; }
+.span2 { grid-column:1/-1; }
+.alert {
+  display:none;
+  position:fixed;
+  inset:0;
+  background:#0b1220aa;
+  z-index:40;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+.alert.open { display:flex; }
+.alertcard {
+  background:white;
+  border-radius:17px;
+  padding:24px;
+  width:min(100%,430px);
+  text-align:center;
+}
+.alertcard h3 { margin:0 0 8px; }
+.alertcard p {
+  white-space:pre-line;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.7;
+}
+.alertactions { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+.drop {
+  border:1px dashed #aebcda;
+  border-radius:12px;
+  background:#fafbff;
+  padding:18px;
+  text-align:center;
+  cursor:pointer;
+}
+.tiles {
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin-top:12px;
+}
+.tile {
+  position:relative;
+  aspect-ratio:1;
+  background:#edf0f6;
+  border-radius:9px;
+  overflow:hidden;
+}
+.tile img { width:100%; height:100%; object-fit:cover; }
+.tile span {
+  position:absolute;
+  top:4px;
+  left:4px;
+  background:#111827c9;
+  color:white;
+  padding:2px 5px;
+  border-radius:5px;
+  font-size:10px;
+}
+.tile button {
+  position:absolute;
+  bottom:4px;
+  border:0;
+  background:#101827c9;
+  color:white;
+  border-radius:5px;
+  padding:4px 6px;
+  font-size:10px;
+}
+.tile .dup { left:4px; }
+.tile .del { right:4px; }
+.tile .pick {
+  display:none;
+  position:absolute;
+  right:7px;
+  top:7px;
+  width:23px;
+  height:23px;
+  border:2px solid white;
+  border-radius:50%;
+  background:#0004;
+  padding:0;
+}
+.tile.selecting .pick { display:block; }
+.tile.selected .pick { background:#3159ce; }
+.tile.selected .pick:after {
+  content:"✓";
+  color:white;
+  display:block;
+  font-size:13px;
+  line-height:18px;
+}
+.tile.selecting .dup,.tile.selecting .del { display:none; }
+.tile.dragging { opacity:.4; }
+.pickbar {
+  display:none;
+  position:fixed;
+  z-index:35;
+  bottom:18px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#172554;
+  color:white;
+  border-radius:13px;
+  padding:9px 11px;
+  gap:8px;
+  align-items:center;
+  box-shadow:0 12px 32px #0004;
+  max-width:calc(100% - 20px);
+  flex-wrap:wrap;
+}
+.pickbar.show { display:flex; }
+.pickbar button { border:0; border-radius:8px; padding:8px 10px; font-size:12px; }
+.progress { display:none; margin-top:14px; }
+.track { height:8px; background:#e9edf5; border-radius:10px; overflow:hidden; }
+.fill { height:100%; width:0; background:linear-gradient(90deg,#2447a8,#6581ed); }
+.pmeta {
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  font-size:12px;
+  color:var(--muted);
+  margin:7px 0;
+}
+.toast {
+  position:fixed;
+  z-index:60;
+  bottom:18px;
+  left:50%;
+  transform:translate(-50%,12px);
+  opacity:0;
+  background:#172033;
+  color:white;
+  padding:11px 15px;
+  border-radius:10px;
+  transition:.2s;
+  max-width:90vw;
+  font-size:13px;
+  pointer-events:none;
+}
+.toast.show { opacity:1; transform:translate(-50%,0); }
+.mobile { display:none; }
+.category-list { display:flex; flex-wrap:wrap; gap:8px; padding:15px; }
+.category-item {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+}
+.category-item .name { font-weight:600; }
+.category-item .description { color:var(--muted); font-size:11px; }
+.category-item .actions { display:flex; gap:5px; margin-left:8px; }
+@media(max-width:1000px) {
+  .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .content { padding:20px; }
+  .shell { grid-template-columns:220px 1fr; }
+}
+@media(max-width:720px) {
+  .login { grid-template-columns:1fr; }
+  .loginHero { display:none; }
+  .shell { display:block; }
+  .side {
+    position:fixed;
+    z-index:15;
+    left:-260px;
+    width:245px;
+    transition:left .2s;
+  }
+  .side.open { left:0; }
+  .mobile {
+    display:inline-grid;
+    place-items:center;
+    border:0;
+    background:#eef1f8;
+    border-radius:9px;
+    width:38px;
+    height:38px;
+  }
+  .top { min-height:65px; padding:10px 12px; }
+  .content { padding:17px 12px; }
+  .pagehead h1 { font-size:21px; }
+  .stats { gap:8px; }
+  .stat { padding:13px; }
+  .stat b { font-size:23px; }
+  .profile { gap:6px; }
+  .profile .orgtext { display:none; }
+  .formgrid { grid-template-columns:1fr; }
+  .span2 { grid-column:auto; }
+  .tiles { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .toolbar input { width:100%; min-width:0; }
+  .pagehead { align-items:flex-start; }
+}
+@media(max-width:380px) {
+  .tiles { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+</style>
 </head>
 
 <body>
 
-  <!-- หน้าลงชื่อเข้าใช้ -->
-  <section id="loginScreen" class="login-screen">
-    <div class="login-card">
-      <div class="login-logo">
-        <div class="brand-icon">
-          <i class="fa-solid fa-shield-halved"></i>
-        </div>
-      </div>
-
-      <h1>ศูนย์จัดการระบบ</h1>
-      <p>AnonMessage Administration Panel</p>
-
-      <div id="googleSignInButton"></div>
-
-      <div id="loginMessage" class="login-error hidden" role="alert"></div>
-
-      <div class="login-notice">
-        <i class="fa-solid fa-lock"></i>
-        สำหรับผู้ดูแลระบบที่ได้รับอนุญาตเท่านั้น
-        การเข้าสู่ระบบจะตรวจสอบสิทธิ์จากเซิร์ฟเวอร์
-      </div>
-
-      <div style="margin-top:22px" class="small muted">
-        <i class="fa-solid fa-circle-info"></i>
-        หากบัญชีไม่มีสิทธิ์แอดมิน กรุณาติดต่อผู้ดูแลหลัก
-      </div>
+<section id="login" class="login">
+  <div class="loginHero">
+    <div class="brand"><span class="mark">AG</span>ActiGallery</div>
+    <div>
+      <div style="font-size:11px;letter-spacing:.14em;color:#cbd7ff">MANAGEMENT CONSOLE</div>
+      <h1>จัดการทุกความทรงจำ<br>อย่างเป็นระบบ</h1>
+      <p>อัปโหลด จัดเรียง จัดหมวดหมู่ และเผยแพร่ภาพกิจกรรมอย่างเป็นระบบ</p>
     </div>
-  </section>
-
-  <!-- หน้าระบบหลังเข้าสู่ระบบ -->
-  <div id="appLayout" class="app-layout hidden">
-
-    <div id="mobileOverlay" class="mobile-overlay"></div>
-
-    <aside id="sidebar" class="sidebar">
-      <div class="sidebar-brand">
-        <div class="brand-icon">
-          <i class="fa-solid fa-shield-halved"></i>
-        </div>
-        <div class="brand-text">
-          AnonMessage
-          <span class="sidebar-subtitle">Administration Panel</span>
-        </div>
-      </div>
-
-      <div class="sidebar-section">เมนูหลัก</div>
-
-      <nav class="nav-menu" aria-label="เมนูผู้ดูแล">
-        <button class="nav-button active" data-page="dashboard">
-          <i class="fa-solid fa-chart-pie"></i>
-          <span>ภาพรวมระบบ</span>
-        </button>
-
-        <button class="nav-button" data-page="users">
-          <i class="fa-solid fa-users"></i>
-          <span>จัดการผู้ใช้</span>
-        </button>
-
-        <button class="nav-button" data-page="reports">
-          <i class="fa-solid fa-flag"></i>
-          <span>รายงานที่ได้รับแจ้ง</span>
-        </button>
-
-        <button class="nav-button" data-page="messages">
-          <i class="fa-solid fa-envelope"></i>
-          <span>ตรวจสอบข้อความ</span>
-        </button>
-
-        <button class="nav-button" data-page="audit">
-          <i class="fa-solid fa-clock-rotate-left"></i>
-          <span>ประวัติการทำงาน</span>
-        </button>
-
-        <button class="nav-button" data-page="system">
-          <i class="fa-solid fa-circle-info"></i>
-          <span>ข้อมูลระบบ</span>
-        </button>
-      </nav>
-
-      <div class="sidebar-bottom">
-        <div class="sidebar-user">
-          <div class="avatar" id="sidebarAvatar">
-            <i class="fa-solid fa-user"></i>
-          </div>
-          <div class="sidebar-user-info">
-            <strong id="sidebarDisplayName">ผู้ดูแลระบบ</strong>
-            <span id="sidebarEmail">-</span>
-          </div>
-        </div>
-
-        <button id="logoutButton" class="sidebar-logout">
-          <i class="fa-solid fa-right-from-bracket"></i>
-          ออกจากระบบ
-        </button>
-      </div>
-    </aside>
-
-    <main class="main-area">
-      <header class="topbar">
-        <div class="topbar-left">
-          <button id="mobileMenuButton" class="icon-button mobile-menu-button"
-                  aria-label="เปิดเมนู">
-            <i class="fa-solid fa-bars"></i>
-          </button>
-
-          <div>
-            <h1 id="pageTitle">ภาพรวมระบบ</h1>
-            <div id="pageSubtitle" class="topbar-subtitle">
-              ภาพรวมการทำงานของ AnonMessage
-            </div>
-          </div>
-        </div>
-
-        <button id="refreshButton" class="button button-secondary">
-          <i class="fa-solid fa-rotate"></i>
-          <span>รีเฟรช</span>
-        </button>
-      </header>
-
-      <div class="main-content">
-
-        <!-- DASHBOARD -->
-        <section id="page-dashboard" class="page-view active">
-          <div class="page-heading">
-            <div>
-              <h2>ภาพรวมระบบ</h2>
-              <p>สรุปข้อมูลที่ได้รับจากฐานข้อมูลจริง</p>
-            </div>
-          </div>
-
-          <div class="stat-grid">
-            <article class="stat-card">
-              <div class="stat-icon blue">
-                <i class="fa-solid fa-users"></i>
-              </div>
-              <div>
-                <div class="stat-label">ผู้ใช้ทั้งหมด</div>
-                <div id="statTotalUsers" class="stat-value">-</div>
-              </div>
-            </article>
-
-            <article class="stat-card">
-              <div class="stat-icon green">
-                <i class="fa-solid fa-user-check"></i>
-              </div>
-              <div>
-                <div class="stat-label">บัญชีที่ใช้งาน</div>
-                <div id="statActiveUsers" class="stat-value">-</div>
-              </div>
-            </article>
-
-            <article class="stat-card">
-              <div class="stat-icon orange">
-                <i class="fa-solid fa-envelope"></i>
-              </div>
-              <div>
-                <div class="stat-label">ข้อความทั้งหมด</div>
-                <div id="statTotalMessages" class="stat-value">-</div>
-              </div>
-            </article>
-
-            <article class="stat-card">
-              <div class="stat-icon purple">
-                <i class="fa-solid fa-flag"></i>
-              </div>
-              <div>
-                <div class="stat-label">รายงานรอตรวจสอบ</div>
-                <div id="statPendingReports" class="stat-value">-</div>
-              </div>
-            </article>
-
-            <article class="stat-card">
-              <div class="stat-icon blue">
-                <i class="fa-solid fa-user-slash"></i>
-              </div>
-              <div>
-                <div class="stat-label">บัญชีที่ไม่ Active</div>
-                <div id="statSuspendedUsers" class="stat-value">-</div>
-              </div>
-            </article>
-
-            <article class="stat-card">
-              <div class="stat-icon green">
-                <i class="fa-solid fa-comment-dots"></i>
-              </div>
-              <div>
-                <div class="stat-label">ข้อความที่ Active</div>
-                <div id="statActiveMessages" class="stat-value">-</div>
-              </div>
-            </article>
-
-            <article class="stat-card">
-              <div class="stat-icon purple">
-                <i class="fa-solid fa-circle-play"></i>
-              </div>
-              <div>
-                <div class="stat-label">สตอรี่ทั้งหมด</div>
-                <div id="statTotalStories" class="stat-value">-</div>
-              </div>
-            </article>
-
-            <article class="stat-card">
-              <div class="stat-icon orange">
-                <i class="fa-solid fa-eye"></i>
-              </div>
-              <div>
-                <div class="stat-label">สตอรี่ที่ Active</div>
-                <div id="statActiveStories" class="stat-value">-</div>
-              </div>
-            </article>
-          </div>
-
-          <div class="card">
-            <div class="card-heading">
-              <h3><i class="fa-solid fa-circle-info"></i> สถานะการเชื่อมต่อ</h3>
-            </div>
-            <div id="connectionStatus" class="notice">
-              กำลังตรวจสอบข้อมูลจาก API...
-            </div>
-            <div class="small muted">
-              ข้อมูลหน้านี้อ่านจาก API ของ AnonMessage ไม่ได้สร้างข้อมูลสถิติขึ้นมาเอง
-            </div>
-          </div>
-        </section>
-
-        <!-- USERS -->
-        <section id="page-users" class="page-view">
-          <div class="page-heading">
-            <div>
-              <h2>จัดการผู้ใช้</h2>
-              <p>ค้นหา ตรวจสอบสถานะ และจัดการการใช้งานบัญชี</p>
-            </div>
-          </div>
-
-          <div class="card">
-            <form id="usersFilterForm" class="toolbar">
-              <div class="field search-field">
-                <label for="usersSearch">ค้นหาผู้ใช้</label>
-                <input id="usersSearch" type="search"
-                       placeholder="อีเมล ชื่อ Username หรือ User ID">
-              </div>
-
-              <div class="field filter-field">
-                <label for="usersStatus">สถานะบัญชี</label>
-                <select id="usersStatus">
-                  <option value="">ทุกสถานะ</option>
-                  <option value="active">ใช้งานอยู่</option>
-                  <option value="suspended">ถูกระงับ</option>
-                </select>
-              </div>
-
-              <button class="button button-primary" type="submit">
-                <i class="fa-solid fa-magnifying-glass"></i> ค้นหา
-              </button>
-
-              <button class="button button-secondary" type="button"
-                      id="usersResetButton">
-                ล้างตัวกรอง
-              </button>
-            </form>
-
-            <div id="usersTableContainer" class="table-wrap">
-              <div class="loading-state">
-                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดผู้ใช้...
-              </div>
-            </div>
-
-            <div id="usersPagination" class="pagination"></div>
-          </div>
-        </section>
-
-        <!-- REPORTS -->
-        <section id="page-reports" class="page-view">
-          <div class="page-heading">
-            <div>
-              <h2>รายงานที่ได้รับแจ้ง</h2>
-              <p>ตรวจสอบรายงานและบันทึกผลการพิจารณา</p>
-            </div>
-          </div>
-
-          <div class="card">
-            <form id="reportsFilterForm" class="toolbar">
-              <div class="field filter-field">
-                <label for="reportsStatus">สถานะรายงาน</label>
-                <select id="reportsStatus">
-                  <option value="">ทุกสถานะ</option>
-                  <option value="pending">รอตรวจสอบ</option>
-                  <option value="resolved">ดำเนินการแล้ว</option>
-                  <option value="dismissed">ยกเลิกรายงาน</option>
-                </select>
-              </div>
-
-              <button class="button button-primary" type="submit">
-                <i class="fa-solid fa-filter"></i> กรองข้อมูล
-              </button>
-            </form>
-
-            <div id="reportsTableContainer" class="table-wrap">
-              <div class="loading-state">
-                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดรายงาน...
-              </div>
-            </div>
-
-            <div id="reportsPagination" class="pagination"></div>
-          </div>
-        </section>
-
-        <!-- MESSAGES -->
-        <section id="page-messages" class="page-view">
-          <div class="page-heading">
-            <div>
-              <h2>ตรวจสอบข้อความ</h2>
-              <p>ตรวจสอบข้อความตามสถานะที่มีอยู่ในฐานข้อมูล</p>
-            </div>
-          </div>
-
-          <div class="notice">
-            <i class="fa-solid fa-shield-halved"></i>
-            หน้านี้แสดงข้อความที่ API ผู้ดูแลส่งกลับมา การตรวจสอบไม่ได้หมายความว่าข้อความจะถูกลบหรือแก้ไขโดยอัตโนมัติ
-          </div>
-
-          <div class="card">
-            <form id="messagesFilterForm" class="toolbar">
-              <div class="field filter-field">
-                <label for="messagesStatus">สถานะข้อความ</label>
-                <select id="messagesStatus">
-                  <option value="">ทุกสถานะ</option>
-                  <option value="active">Active</option>
-                  <option value="deleted">Deleted</option>
-                  <option value="hidden">Hidden</option>
-                </select>
-              </div>
-
-              <button class="button button-primary" type="submit">
-                <i class="fa-solid fa-filter"></i> กรองข้อมูล
-              </button>
-            </form>
-
-            <div id="messagesTableContainer" class="table-wrap">
-              <div class="loading-state">
-                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อความ...
-              </div>
-            </div>
-
-            <div id="messagesPagination" class="pagination"></div>
-          </div>
-        </section>
-
-        <!-- AUDIT LOGS -->
-        <section id="page-audit" class="page-view">
-          <div class="page-heading">
-            <div>
-              <h2>ประวัติการทำงาน</h2>
-              <p>ตรวจสอบเหตุการณ์ที่ระบบบันทึกไว้</p>
-            </div>
-          </div>
-
-          <div class="card">
-            <div id="auditTableContainer" class="table-wrap">
-              <div class="loading-state">
-                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดประวัติ...
-              </div>
-            </div>
-
-            <div id="auditPagination" class="pagination"></div>
-          </div>
-        </section>
-
-        <!-- SYSTEM INFO -->
-        <section id="page-system" class="page-view">
-          <div class="page-heading">
-            <div>
-              <h2>ข้อมูลระบบ</h2>
-              <p>ข้อมูลการเชื่อมต่อและบัญชีผู้ดูแลที่เข้าสู่ระบบ</p>
-            </div>
-          </div>
-
-          <div class="two-column">
-            <div class="card">
-              <div class="card-heading">
-                <h3>การเชื่อมต่อ API</h3>
-              </div>
-
-              <dl class="info-list">
-                <dt>ชื่อระบบ</dt>
-                <dd>AnonMessage</dd>
-
-                <dt>API Endpoint</dt>
-                <dd id="systemApiUrl">-</dd>
-
-                <dt>สถานะ API</dt>
-                <dd id="systemApiStatus">ยังไม่ได้ตรวจสอบ</dd>
-
-                <dt>วิธีเชื่อมต่อ</dt>
-                <dd>Cloudflare Worker → Google Apps Script</dd>
-
-                <dt>ฐานข้อมูล</dt>
-                <dd>Google Sheets</dd>
-              </dl>
-
-              <button id="systemHealthButton" class="button button-secondary"
-                      style="margin-top:20px">
-                <i class="fa-solid fa-heart-pulse"></i> ตรวจสอบ API
-              </button>
-            </div>
-
-            <div class="card">
-              <div class="card-heading">
-                <h3>บัญชีผู้ดูแล</h3>
-              </div>
-
-              <dl class="info-list">
-                <dt>ชื่อที่แสดง</dt>
-                <dd id="systemUserName">-</dd>
-
-                <dt>อีเมล</dt>
-                <dd id="systemUserEmail">-</dd>
-
-                <dt>Username</dt>
-                <dd id="systemUsername">-</dd>
-
-                <dt>บทบาท</dt>
-                <dd id="systemUserRole">-</dd>
-
-                <dt>User ID</dt>
-                <dd id="systemUserId">-</dd>
-              </dl>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-heading">
-              <h3>หมายเหตุด้านความปลอดภัย</h3>
-            </div>
-            <ul>
-              <li>สิทธิ์แอดมินต้องได้รับการตรวจสอบจาก API ฝั่งเซิร์ฟเวอร์</li>
-              <li>อย่าเผยแพร่ Session Token หรือ OAuth Client Secret</li>
-              <li>กำหนดอีเมลแอดมินใน Script Properties ชื่อ ADMIN_EMAILS</li>
-              <li>การเปลี่ยนสถานะผู้ใช้และการตรวจสอบรายงานจะบันทึกประวัติผ่าน API ที่รองรับ</li>
-            </ul>
-          </div>
-        </section>
-
-        <div class="footer-note">
-          AnonMessage Administration Panel
-          <br>
-          <span>ระบบบริหารจัดการสำหรับผู้ดูแลที่ได้รับอนุญาต</span>
-        </div>
-      </div>
-    </main>
+    <small>ActiGallery · คลังภาพกิจกรรมออนไลน์</small>
   </div>
 
-  <div id="toastArea" class="toast-area" aria-live="polite"></div>
+  <div class="loginPanel">
+    <form class="loginForm" id="loginForm">
+      <div style="color:#3154bd;font-size:11px;font-weight:700;letter-spacing:.12em">ADMINISTRATION PORTAL</div>
+      <h2>เข้าสู่ระบบจัดการ</h2>
+      <p class="muted">ลงชื่อเข้าใช้ด้วยบัญชีที่ได้รับจากผู้ดูแลระบบ</p>
 
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+      <div class="field">
+        <label for="username">ชื่อผู้ใช้</label>
+        <input id="username" required autocomplete="username" placeholder="กรอกชื่อผู้ใช้">
+      </div>
 
-  <script>
-    'use strict';
+      <div class="field">
+        <label for="password">รหัสผ่าน</label>
+        <input id="password" type="password" required autocomplete="current-password" placeholder="กรอกรหัสผ่าน">
+      </div>
 
-    /* =========================================================
-       CONFIGURATION
-       เปลี่ยน API_BASE_URL ให้เป็น URL ของ Cloudflare Worker จริง
-       ========================================================= */
+      <button class="btn primary block" id="loginBtn" type="submit">เข้าสู่ระบบ →</button>
+      <button type="button" class="help" id="help">ฉันจะทราบชื่อผู้ใช้และรหัสผ่านได้อย่างไร</button>
+      <p class="muted" style="font-size:11px;margin-top:25px">ยืนยันตัวตนด้วย Firebase Authentication</p>
+    </form>
+  </div>
+</section>
 
-    const CONFIG = Object.freeze({
-      APP_NAME: 'AnonMessage',
+<div id="app" class="shell hidden">
+  <aside class="side" id="side">
+    <div class="brand"><span class="mark">AG</span>ActiGallery</div>
 
-      API_BASE_URL: 'https://aged-wind-2abe.thepickffcer.workers.dev/',
+    <div class="navLabel">WORKSPACE</div>
+    <button class="nav active" data-page="home" type="button">▦ แดชบอร์ด</button>
 
-      GOOGLE_CLIENT_ID:
-        '1022921992521-66fjmcq5qhrsrtk0hu6e6no84sn51ka6.apps.googleusercontent.com',
+    <div id="adminNav" class="hidden">
+      <div class="navLabel">ADMINISTRATION</div>
+      <button class="nav" data-page="users" type="button">♙ จัดการผู้ใช้งาน</button>
+      <button class="nav" data-page="orgs" type="button">▤ หน่วยงานและองค์กร</button>
+      <button class="nav" data-page="allAlbums" type="button">▧ อัลบั้มทั้งหมด</button>
+      <button class="nav" data-page="categories" type="button">▦ จัดการหมวดหมู่</button>
+    </div>
 
-      SESSION_STORAGE_KEY: 'anonmessage_session_token',
-      LAST_USER_KEY: 'anonmessage_last_user',
+    <div class="navLabel">MY CONTENT</div>
+    <button class="nav" data-page="albums" type="button">▧ จัดการอัลบั้ม</button>
+    <button class="nav" data-page="profile" type="button">♙ โปรไฟล์ของฉัน</button>
 
-      DEFAULT_PAGE_SIZE: 20
+    <div class="sidefoot">ActiGallery<br>Secure Management Console</div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="mobile" id="menu" type="button" aria-label="เปิดเมนู">☰</button>
+        <div>
+          <div class="topTitle" id="topTitle">แดชบอร์ด</div>
+          <small class="muted">ระบบจัดการคลังภาพกิจกรรม</small>
+        </div>
+      </div>
+
+      <div class="profile">
+        <div class="avatar" id="avatar">A</div>
+        <div>
+          <div id="pname" style="font-weight:600">ผู้ใช้งาน</div>
+          <div id="porg" class="muted orgtext">ActiGallery</div>
+        </div>
+        <button class="btn" id="logout" type="button">ออกจากระบบ</button>
+      </div>
+    </header>
+
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modalbox">
+    <div class="modalhead">
+      <h2 id="modalTitle">แก้ไขข้อมูล</h2>
+      <button class="btn" id="modalX" type="button" aria-label="ปิด">×</button>
+    </div>
+    <form id="modalForm">
+      <div class="modalbody" id="modalBody"></div>
+      <div class="modalfoot">
+        <button type="button" class="btn" id="modalCancel">ยกเลิก</button>
+        <button class="btn primary" id="modalSave" type="submit">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="alert" id="alert">
+  <div class="alertcard">
+    <h3 id="alertTitle">แจ้งเตือน</h3>
+    <p id="alertText"></p>
+    <div class="alertactions" id="alertActions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import {
+  getFunctions,
+  httpsCallable
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
+
+/*
+ * ACTIGALLERY FIREBASE CONFIGURATION
+ *
+ * แก้ค่า REPLACE_* ให้ตรงกับ Firebase Web App จริง
+ * ห้ามใส่รหัสผ่านผู้ดูแลระบบหรือ ImgBB API Key ในไฟล์นี้
+ */
+const config = {
+  apiKey: "REPLACE_WITH_FIREBASE_WEB_API_KEY",
+  authDomain: "REPLACE_WITH_PROJECT_ID.firebaseapp.com",
+  projectId: "REPLACE_WITH_PROJECT_ID",
+  appId: "REPLACE_WITH_FIREBASE_APP_ID"
+};
+
+const app = initializeApp(config);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const fn = getFunctions(app, "asia-southeast1");
+const $ = id => document.getElementById(id);
+const call = name => httpsCallable(fn, name);
+
+/*
+ * URL ของ Cloud Function สำหรับอัปโหลดภาพไป ImgBB
+ * ต้องเป็น URL ของฟังก์ชัน uploadImage ที่ deploy จริง
+ */
+const UPLOAD_URL = "REPLACE_WITH_CLOUD_FUNCTION_UPLOAD_URL";
+
+const S = {
+  user: null,
+  p: null,
+  orgs: [],
+  users: [],
+  albums: [],
+  categories: [],
+  page: "home",
+  editing: null,
+  tiles: [],
+  selected: new Set(),
+  selecting: false,
+  busy: false,
+  resolve: null,
+  progress: null,
+  drag: null
+};
+
+function esc(value = "") {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[char]));
+}
+
+function toast(message) {
+  $("toast").textContent = message;
+  $("toast").classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => $("toast").classList.remove("show"), 3200);
+}
+
+function errorText(error) {
+  const code = error?.code || "";
+
+  if (/invalid-credential|wrong-password|user-not-found|invalid-login-credentials/.test(code)) {
+    return "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+  }
+
+  if (code.includes("permission-denied")) {
+    return "ไม่มีสิทธิ์ดำเนินการนี้ โปรดตรวจสอบบทบาทและสิทธิ์ในระบบ";
+  }
+
+  if (code.includes("already-exists")) {
+    return "ข้อมูลนี้มีอยู่แล้ว";
+  }
+
+  if (code.includes("unauthenticated")) {
+    return "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่";
+  }
+
+  return error?.message || "เกิดข้อผิดพลาด";
+}
+
+function dt(value) {
+  try {
+    if (!value) return "—";
+    const date = typeof value.toDate === "function" ? value.toDate() : new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+
+    return new Intl.DateTimeFormat("th-TH", {
+      day:"numeric",
+      month:"short",
+      year:"numeric"
+    }).format(date);
+  } catch {
+    return "—";
+  }
+}
+
+function dateInputValue(value) {
+  if (!value) return "";
+
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  try {
+    const d = typeof value.toDate === "function" ? value.toDate() : new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, "0"),
+      String(d.getDate()).padStart(2, "0")
+    ].join("-");
+  } catch {
+    return "";
+  }
+}
+
+function fmt(value) {
+  return Number(value || 0).toLocaleString("th-TH");
+}
+
+function usernameEmail(username) {
+  return String(username).trim().toLowerCase() + "@actigallery-login.com";
+}
+
+function alertBox(title, message, actions = [
+  {label:"ตกลง",value:true,primary:true}
+]) {
+  return new Promise(resolve => {
+    S.resolve = resolve;
+    $("alertTitle").textContent = title;
+    $("alertText").textContent = message;
+
+    $("alertActions").innerHTML = actions.map((action, index) => `
+      <button
+        type="button"
+        class="btn ${action.primary ? "primary" : ""}"
+        data-i="${index}"
+      >${esc(action.label)}</button>
+    `).join("");
+
+    $("alertActions").querySelectorAll("button").forEach(button => {
+      button.onclick = () => {
+        $("alert").classList.remove("open");
+        const callback = S.resolve;
+        S.resolve = null;
+        callback?.(actions[Number(button.dataset.i)].value);
+      };
     });
 
-    const state = {
-      sessionToken: '',
-      user: null,
-      currentPage: 'dashboard',
-      googleInitialized: false,
-      usersPage: 1,
-      usersTotalPages: 1,
-      reportsPage: 1,
-      reportsTotalPages: 1,
-      messagesPage: 1,
-      messagesTotalPages: 1,
-      auditPage: 1,
-      auditTotalPages: 1,
-      busy: false
-    };
-
-    const PAGE_INFO = {
-      dashboard: {
-        title: 'ภาพรวมระบบ',
-        subtitle: 'ภาพรวมการทำงานของ AnonMessage'
-      },
-      users: {
-        title: 'จัดการผู้ใช้',
-        subtitle: 'ค้นหาและจัดการสถานะบัญชีผู้ใช้'
-      },
-      reports: {
-        title: 'รายงานที่ได้รับแจ้ง',
-        subtitle: 'ตรวจสอบและบันทึกผลการพิจารณารายงาน'
-      },
-      messages: {
-        title: 'ตรวจสอบข้อความ',
-        subtitle: 'ตรวจสอบรายการข้อความจากระบบ'
-      },
-      audit: {
-        title: 'ประวัติการทำงาน',
-        subtitle: 'ตรวจสอบประวัติเหตุการณ์ในระบบ'
-      },
-      system: {
-        title: 'ข้อมูลระบบ',
-        subtitle: 'สถานะการเชื่อมต่อและข้อมูลผู้ดูแล'
-      }
-    };
-
-    /* =========================================================
-       DOM AND FORMATTING HELPERS
-       ========================================================= */
-
-    function byId(id) {
-      return document.getElementById(id);
-    }
-
-    function escapeHtml(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    function safeUrl(value) {
-      const raw = String(value || '').trim();
-
-      if (!raw) {
-        return '';
-      }
-
-      try {
-        const parsed = new URL(raw);
-
-        if (parsed.protocol !== 'https:' &&
-            parsed.protocol !== 'http:') {
-          return '';
-        }
-
-        return parsed.href;
-      } catch (error) {
-        return '';
-      }
-    }
-
-    function formatNumber(value) {
-      return Number(value || 0).toLocaleString('th-TH');
-    }
-
-    function formatDate(value) {
-      if (!value) {
-        return '-';
-      }
-
-      const date = new Date(value);
-
-      if (Number.isNaN(date.getTime())) {
-        return String(value);
-      }
-
-      return new Intl.DateTimeFormat('th-TH', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-      }).format(date);
-    }
-
-    function showToast(message, type) {
-      const toast = document.createElement('div');
-
-      toast.className = 'toast ' + (type || '');
-      toast.textContent = String(message || '');
-
-      byId('toastArea').appendChild(toast);
-
-      window.setTimeout(function () {
-        toast.remove();
-      }, 4500);
-    }
-
-    function showLoginMessage(message) {
-      const box = byId('loginMessage');
-
-      box.textContent = String(message || '');
-      box.classList.remove('hidden');
-    }
-
-    function hideLoginMessage() {
-      byId('loginMessage').textContent = '';
-      byId('loginMessage').classList.add('hidden');
-    }
-
-    function showLoading(containerId, message) {
-      const container = byId(containerId);
-
-      if (!container) {
-        return;
-      }
-
-      container.innerHTML =
-        '<div class="loading-state">' +
-          '<i class="fa-solid fa-spinner fa-spin"></i> ' +
-          escapeHtml(message || 'กำลังโหลดข้อมูล...') +
-        '</div>';
-    }
-
-    function renderEmpty(containerId, title, description) {
-      const container = byId(containerId);
-
-      if (!container) {
-        return;
-      }
-
-      container.innerHTML =
-        '<div class="empty-state">' +
-          '<i class="fa-regular fa-folder-open"></i>' +
-          '<strong>' + escapeHtml(title || 'ไม่มีข้อมูล') + '</strong>' +
-          (description
-            ? '<div>' + escapeHtml(description) + '</div>'
-            : '') +
-        '</div>';
-    }
-
-    function statusBadge(status) {
-      const value = String(status || '').toLowerCase();
-
-      const labels = {
-        active: 'ใช้งานอยู่',
-        suspended: 'ถูกระงับ',
-        pending: 'รอตรวจสอบ',
-        resolved: 'ดำเนินการแล้ว',
-        dismissed: 'ยกเลิกรายงาน',
-        deleted: 'ลบแล้ว',
-        hidden: 'ซ่อนแล้ว',
-        revoked: 'ยกเลิกแล้ว',
-        admin: 'ผู้ดูแลระบบ',
-        user: 'ผู้ใช้ทั่วไป'
-      };
-
-      let className = 'badge-neutral';
-
-      if (value === 'active' || value === 'resolved') {
-        className = 'badge-active';
-      } else if (value === 'pending') {
-        className = 'badge-pending';
-      } else if (
-        value === 'suspended' ||
-        value === 'dismissed' ||
-        value === 'deleted' ||
-        value === 'hidden' ||
-        value === 'revoked'
-      ) {
-        className = 'badge-suspended';
-      }
-
-      return '<span class="badge ' + className + '">' +
-        escapeHtml(labels[value] || status || 'ไม่ระบุ') +
-        '</span>';
-    }
-
-    function getSessionToken() {
-      return state.sessionToken ||
-        localStorage.getItem(CONFIG.SESSION_STORAGE_KEY) ||
-        '';
-    }
-
-    function saveSessionToken(token) {
-      state.sessionToken = String(token || '');
-
-      if (state.sessionToken) {
-        localStorage.setItem(
-          CONFIG.SESSION_STORAGE_KEY,
-          state.sessionToken
-        );
-      } else {
-        localStorage.removeItem(CONFIG.SESSION_STORAGE_KEY);
-      }
-    }
-
-    function getApiUrl() {
-      const base = String(CONFIG.API_BASE_URL || '').trim();
-
-      if (!base ||
-          base.indexOf('YOUR-CLOUDFLARE-WORKER-URL') !== -1) {
-        throw new Error(
-          'กรุณากำหนด API_BASE_URL เป็น URL ของ Cloudflare Worker จริง'
-        );
-      }
-
-      let parsed;
-
-      try {
-        parsed = new URL(base);
-      } catch (error) {
-        throw new Error('รูปแบบ API_BASE_URL ไม่ถูกต้อง');
-      }
-
-      if (parsed.protocol !== 'https:') {
-        throw new Error('API_BASE_URL ต้องใช้ HTTPS');
-      }
-
-      return base.replace(/\/+$/, '');
-    }
-
-    /* =========================================================
-       API CLIENT
-       รูปแบบตรงกับ Code.gs:
-       POST { action: "...", data: {...} }
-       ========================================================= */
-
-    async function apiRequest(action, data, options) {
-      const opts = options || {};
-      const payload = Object.assign({}, data || {});
-
-      if (opts.auth !== false && getSessionToken()) {
-        if (!Object.prototype.hasOwnProperty.call(
-          payload,
-          'sessionToken'
-        )) {
-          payload.sessionToken = getSessionToken();
-        }
-      }
-
-      const url = getApiUrl();
-      let response;
-
-      try {
-        response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8'
-          },
-          body: JSON.stringify({
-            action: String(action),
-            data: payload
-          }),
-          redirect: 'follow',
-          cache: 'no-store'
-        });
-      } catch (error) {
-        throw new Error(
-          'เชื่อมต่อ API ไม่สำเร็จ กรุณาตรวจสอบ URL ของ Worker, CORS และสถานะ Deploy'
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error('API ตอบกลับด้วย HTTP ' + response.status);
-      }
-
-      let result;
-
-      try {
-        result = await response.json();
-      } catch (error) {
-        throw new Error(
-          'API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Cloudflare Worker และ Code.gs'
-        );
-      }
-
-      if (!result || typeof result !== 'object') {
-        throw new Error('รูปแบบข้อมูล API ไม่ถูกต้อง');
-      }
-
-      if (!result.ok) {
-        const code = String(result.error || 'API_ERROR');
-        const message = String(result.message || 'คำขอไม่สำเร็จ');
-
-        if (
-          opts.auth !== false &&
-          [
-            'AUTH_REQUIRED',
-            'INVALID_SESSION',
-            'SESSION_REVOKED',
-            'SESSION_EXPIRED',
-            'ACCOUNT_DISABLED'
-          ].indexOf(code) !== -1
-        ) {
-          saveSessionToken('');
-          state.user = null;
-          showLoginScreen();
-        }
-
-        throw new Error(message + ' (' + code + ')');
-      }
-
-      return result;
-    }
-
-    /* =========================================================
-       GOOGLE SIGN-IN
-       ========================================================= */
-
-    function initializeGoogleSignIn() {
-      if (!CONFIG.GOOGLE_CLIENT_ID ||
-          CONFIG.GOOGLE_CLIENT_ID.indexOf('YOUR_') === 0) {
-        showLoginMessage(
-          'กรุณากำหนด Google OAuth Client ID ให้ถูกต้อง'
-        );
-        return;
-      }
-
-      if (
-        !window.google ||
-        !window.google.accounts ||
-        !window.google.accounts.id
-      ) {
-        window.setTimeout(initializeGoogleSignIn, 400);
-        return;
-      }
-
-      if (state.googleInitialized) {
-        return;
-      }
-
-      try {
-        window.google.accounts.id.initialize({
-          client_id: CONFIG.GOOGLE_CLIENT_ID,
-          callback: handleGoogleCredential,
-          auto_select: false,
-          cancel_on_tap_outside: true
-        });
-
-        window.google.accounts.id.renderButton(
-          byId('googleSignInButton'),
-          {
-            type: 'standard',
-            theme: 'outline',
-            size: 'large',
-            text: 'signin_with',
-            shape: 'pill',
-            logo_alignment: 'left',
-            width: 280
-          }
-        );
-
-        state.googleInitialized = true;
-      } catch (error) {
-        showLoginMessage(
-          'ตั้งค่า Google Sign-In ไม่สำเร็จ: ' + error.message
-        );
-      }
-    }
-
-    async function handleGoogleCredential(credentialResponse) {
-      hideLoginMessage();
-
-      if (!credentialResponse ||
-          !credentialResponse.credential) {
-        showLoginMessage(
-          'Google ไม่ได้ส่งข้อมูลยืนยันตัวตนกลับมา'
-        );
-        return;
-      }
-
-      try {
-        const result = await apiRequest(
-          'googleLogin',
-          {
-            idToken: credentialResponse.credential,
-            userAgent: navigator.userAgent
-          },
-          {
-            auth: false
-          }
-        );
-
-        if (!result.sessionToken || !result.user) {
-          throw new Error(
-            'API ไม่ได้ส่ง sessionToken หรือข้อมูลผู้ใช้กลับมา'
-          );
-        }
-
-        saveSessionToken(result.sessionToken);
-        state.user = result.user;
-
-        localStorage.setItem(
-          CONFIG.LAST_USER_KEY,
-          JSON.stringify({
-            userId: result.user.userId,
-            username: result.user.username,
-            displayName: result.user.displayName
-          })
-        );
-
-        /*
-         * เรียก API ที่ต้องใช้สิทธิ์แอดมินทันที
-         * หากบัญชีไม่มีสิทธิ์ ระบบจะปฏิเสธที่ฝั่งเซิร์ฟเวอร์
-         */
-        await apiRequest('adminDashboard', {});
-
-        showAppScreen();
-        renderAdminIdentity();
-
-        await navigateTo('dashboard');
-
-        showToast('เข้าสู่ระบบผู้ดูแลสำเร็จ', 'success');
-      } catch (error) {
-        saveSessionToken('');
-        state.user = null;
-
-        showLoginScreen();
-
-        showLoginMessage(
-          'เข้าสู่ระบบผู้ดูแลไม่สำเร็จ: ' + error.message
-        );
-      }
-    }
-
-    async function restoreSession() {
-      const token = localStorage.getItem(
-        CONFIG.SESSION_STORAGE_KEY
-      );
-
-      if (!token) {
-        showLoginScreen();
-        return;
-      }
-
-      state.sessionToken = token;
-
-      try {
-        const result = await apiRequest('getMe', {});
-
-        state.user = result.user || null;
-
-        if (!state.user) {
-          throw new Error('ไม่พบข้อมูลผู้ใช้');
-        }
-
-        /*
-         * ตรวจสอบสิทธิ์จากเซิร์ฟเวอร์
-         * ไม่เชื่อถือข้อมูล role ที่บันทึกไว้ในเบราว์เซอร์
-         */
-        await apiRequest('adminDashboard', {});
-
-        showAppScreen();
-        renderAdminIdentity();
-
-        await navigateTo('dashboard');
-      } catch (error) {
-        saveSessionToken('');
-        state.user = null;
-        showLoginScreen();
-      }
-    }
-
-    function showLoginScreen() {
-      byId('loginScreen').classList.remove('hidden');
-      byId('appLayout').classList.add('hidden');
-    }
-
-    function showAppScreen() {
-      byId('loginScreen').classList.add('hidden');
-      byId('appLayout').classList.remove('hidden');
-    }
-
-    function renderAdminIdentity() {
-      const user = state.user || {};
-
-      const name = user.displayName ||
-        user.username ||
-        'ผู้ดูแลระบบ';
-
-      const email = user.email || '-';
-      const avatarUrl = safeUrl(user.avatarUrl);
-
-      byId('sidebarDisplayName').textContent = name;
-      byId('sidebarEmail').textContent = email;
-
-      if (avatarUrl) {
-        byId('sidebarAvatar').innerHTML =
-          '<img src="' + escapeHtml(avatarUrl) +
-          '" alt="รูปผู้ดูแล">';
-      } else {
-        byId('sidebarAvatar').innerHTML =
-          '<i class="fa-solid fa-user"></i>';
-      }
-
-      byId('systemUserName').textContent = name;
-      byId('systemUserEmail').textContent = email;
-      byId('systemUsername').textContent = user.username || '-';
-      byId('systemUserRole').textContent = user.role || '-';
-      byId('systemUserId').textContent = user.userId || '-';
-      byId('systemApiUrl').textContent = CONFIG.API_BASE_URL;
-    }
-
-    async function logout() {
-      const answer = await Swal.fire({
-        icon: 'question',
-        title: 'ออกจากระบบผู้ดูแล?',
-        text: 'คุณจะต้องเข้าสู่ระบบใหม่เพื่อเปิดหน้าแอดมินอีกครั้ง',
-        showCancelButton: true,
-        confirmButtonText: 'ออกจากระบบ',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#b91c1c'
-      });
-
-      if (!answer.isConfirmed) {
-        return;
-      }
-
-      /*
-       * Code.gs ปัจจุบันไม่มี action logout สำหรับ session
-       * การทำงานนี้จึงลบ token ในเบราว์เซอร์เท่านั้น
-       * หากต้องการเพิกถอน session ฝั่งเซิร์ฟเวอร์
-       * ต้องเพิ่ม API logout/revoke session ใน Code.gs ก่อน
-       */
-      saveSessionToken('');
-      state.user = null;
-
-      try {
-        localStorage.removeItem(CONFIG.LAST_USER_KEY);
-      } catch (error) {
-        // ไม่ต้องทำอะไร หากเบราว์เซอร์ปฏิเสธการลบข้อมูล
-      }
-
-      showLoginScreen();
-      showToast('ออกจากระบบในเบราว์เซอร์แล้ว', 'success');
-    }
-
-    /* =========================================================
-       NAVIGATION
-       ========================================================= */
-
-    async function navigateTo(page) {
-      if (!PAGE_INFO[page]) {
-        return;
-      }
-
-      state.currentPage = page;
-
-      document.querySelectorAll('.nav-button').forEach(function (button) {
-        button.classList.toggle(
-          'active',
-          button.dataset.page === page
-        );
-      });
-
-      document.querySelectorAll('.page-view').forEach(function (view) {
-        view.classList.toggle(
-          'active',
-          view.id === 'page-' + page
-        );
-      });
-
-      byId('pageTitle').textContent = PAGE_INFO[page].title;
-      byId('pageSubtitle').textContent = PAGE_INFO[page].subtitle;
-
-      closeMobileMenu();
-
-      if (page === 'dashboard') {
-        await loadDashboard();
-      } else if (page === 'users') {
-        await loadUsers();
-      } else if (page === 'reports') {
-        await loadReports();
-      } else if (page === 'messages') {
-        await loadMessages();
-      } else if (page === 'audit') {
-        await loadAuditLogs();
-      } else if (page === 'system') {
-        renderAdminIdentity();
-        await checkHealth();
-      }
-    }
-
-    function closeMobileMenu() {
-      byId('sidebar').classList.remove('open');
-      byId('mobileOverlay').classList.remove('show');
-    }
-
-    function openMobileMenu() {
-      byId('sidebar').classList.add('open');
-      byId('mobileOverlay').classList.add('show');
-    }
-
-    async function refreshCurrentPage() {
-      await navigateTo(state.currentPage);
-      showToast('รีเฟรชข้อมูลแล้ว', 'success');
-    }
-
-    /* =========================================================
-       DASHBOARD
-       ========================================================= */
-
-    async function loadDashboard() {
-      byId('connectionStatus').textContent =
-        'กำลังโหลดข้อมูลจาก API...';
-
-      try {
-        const result = await apiRequest('adminDashboard', {});
-        const stats = result.stats || {};
-
-        byId('statTotalUsers').textContent =
-          formatNumber(stats.totalUsers);
-
-        byId('statActiveUsers').textContent =
-          formatNumber(stats.activeUsers);
-
-        byId('statSuspendedUsers').textContent =
-          formatNumber(stats.suspendedUsers);
-
-        byId('statTotalMessages').textContent =
-          formatNumber(stats.totalMessages);
-
-        byId('statActiveMessages').textContent =
-          formatNumber(stats.activeMessages);
-
-        byId('statTotalStories').textContent =
-          formatNumber(stats.totalStories);
-
-        byId('statActiveStories').textContent =
-          formatNumber(stats.activeStories);
-
-        byId('statPendingReports').textContent =
-          formatNumber(stats.pendingReports);
-
-        byId('connectionStatus').textContent =
-          'เชื่อมต่อ API สำเร็จ และได้รับข้อมูลภาพรวมจากเซิร์ฟเวอร์แล้ว';
-
-        byId('connectionStatus').style.background = '#dcfce7';
-        byId('connectionStatus').style.color = '#166534';
-        byId('connectionStatus').style.borderColor = '#bbf7d0';
-      } catch (error) {
-        byId('connectionStatus').textContent =
-          'โหลดข้อมูลไม่สำเร็จ: ' + error.message;
-
-        byId('connectionStatus').style.background = '#fee2e2';
-        byId('connectionStatus').style.color = '#991b1b';
-        byId('connectionStatus').style.borderColor = '#fecaca';
-
-        showToast(error.message, 'error');
-      }
-    }
-
-    /* =========================================================
-       PAGINATION
-       ========================================================= */
-
-    function renderPagination(
-      containerId,
-      currentPage,
-      totalPages,
-      total,
-      onChange
-    ) {
-      const container = byId(containerId);
-
-      if (!container) {
-        return;
-      }
-
-      const pages = Math.max(1, Number(totalPages || 1));
-      const current = Math.min(
-        pages,
-        Math.max(1, Number(currentPage || 1))
-      );
-
-      container.innerHTML =
-        '<div class="muted small">จำนวน ' +
-        formatNumber(total) +
-        ' รายการ · หน้า ' +
-        current +
-        ' / ' +
-        pages +
-        '</div>' +
-        '<div class="pagination-controls">' +
-          '<button class="button button-secondary button-small" ' +
-            'data-page-action="previous" ' +
-            (current <= 1 ? 'disabled' : '') +
-            '>ก่อนหน้า</button>' +
-          '<button class="button button-secondary button-small" ' +
-            'data-page-action="next" ' +
-            (current >= pages ? 'disabled' : '') +
-            '>ถัดไป</button>' +
-        '</div>';
-
-      const previous = container.querySelector(
-        '[data-page-action="previous"]'
-      );
-
-      const next = container.querySelector(
-        '[data-page-action="next"]'
-      );
-
-      previous.addEventListener('click', function () {
-        if (current > 1) {
-          onChange(current - 1);
-        }
-      });
-
-      next.addEventListener('click', function () {
-        if (current < pages) {
-          onChange(current + 1);
-        }
-      });
-    }
-
-    /* =========================================================
-       USER MANAGEMENT
-       API:
-       adminListUsers
-       adminSetUserStatus
-       adminRevokeUserSessions
-       ========================================================= */
-
-    async function loadUsers() {
-      showLoading('usersTableContainer', 'กำลังโหลดผู้ใช้...');
-
-      try {
-        const result = await apiRequest('adminListUsers', {
-          page: state.usersPage,
-          pageSize: CONFIG.DEFAULT_PAGE_SIZE,
-          search: byId('usersSearch').value.trim(),
-          status: byId('usersStatus').value
-        });
-
-        const items = result.items || [];
-        const pagination = result.pagination || {};
-
-        state.usersTotalPages = Math.max(
-          1,
-          Number(pagination.totalPages || 1)
-        );
-
-        renderUsersTable(items);
-
-        renderPagination(
-          'usersPagination',
-          state.usersPage,
-          state.usersTotalPages,
-          pagination.total || 0,
-          function (page) {
-            state.usersPage = page;
-            loadUsers();
-          }
-        );
-      } catch (error) {
-        renderEmpty(
-          'usersTableContainer',
-          'โหลดรายชื่อผู้ใช้ไม่สำเร็จ',
-          error.message
-        );
-
-        byId('usersPagination').innerHTML = '';
-      }
-    }
-
-    function renderUsersTable(items) {
-      const container = byId('usersTableContainer');
-
-      if (!items.length) {
-        renderEmpty(
-          'usersTableContainer',
-          'ไม่พบผู้ใช้',
-          'ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ'
-        );
-        return;
-      }
-
-      const rows = items.map(function (user) {
-        const id = escapeHtml(user.userId || '');
-        const role = String(user.role || 'user');
-        const status = String(user.status || '');
-
-        let actionButtons = '';
-
-        if (role === 'admin') {
-          actionButtons =
-            '<span class="muted small">บัญชีผู้ดูแลที่ได้รับการป้องกัน</span>';
-        } else if (status === 'active') {
-          actionButtons =
-            '<div class="button-group">' +
-              '<button class="button button-danger button-small" ' +
-                'data-user-action="suspend" data-user-id="' + id + '">' +
-                '<i class="fa-solid fa-ban"></i> ระงับบัญชี' +
-              '</button>' +
-              '<button class="button button-secondary button-small" ' +
-                'data-user-action="revoke" data-user-id="' + id + '">' +
-                '<i class="fa-solid fa-right-from-bracket"></i> เพิกถอนเซสชัน' +
-              '</button>' +
-            '</div>';
-        } else {
-          actionButtons =
-            '<div class="button-group">' +
-              '<button class="button button-success button-small" ' +
-                'data-user-action="activate" data-user-id="' + id + '">' +
-                '<i class="fa-solid fa-user-check"></i> เปิดใช้งาน' +
-              '</button>' +
-              '<button class="button button-secondary button-small" ' +
-                'data-user-action="revoke" data-user-id="' + id + '">' +
-                '<i class="fa-solid fa-right-from-bracket"></i> เพิกถอนเซสชัน' +
-              '</button>' +
-            '</div>';
-        }
-
-        return '<tr>' +
-          '<td>' +
-            '<div class="table-primary">' +
-              escapeHtml(user.displayName || '-') +
-            '</div>' +
-            '<div class="table-secondary">' +
-              escapeHtml(user.username || '-') +
-            '</div>' +
-            '<div class="table-secondary">' +
-              escapeHtml(user.userId || '') +
-            '</div>' +
-          '</td>' +
-          '<td>' + escapeHtml(user.email || '-') + '</td>' +
-          '<td>' + statusBadge(role) + '</td>' +
-          '<td>' + statusBadge(status) + '</td>' +
-          '<td>' + formatNumber(user.messageCount) + '</td>' +
-          '<td>' + escapeHtml(formatDate(user.createdAt)) + '</td>' +
-          '<td>' + escapeHtml(formatDate(user.lastLoginAt)) + '</td>' +
-          '<td>' + actionButtons + '</td>' +
-        '</tr>';
-      }).join('');
-
-      container.innerHTML =
-        '<table>' +
-          '<thead><tr>' +
-            '<th>ข้อมูลผู้ใช้</th>' +
-            '<th>อีเมล</th>' +
-            '<th>บทบาท</th>' +
-            '<th>สถานะ</th>' +
-            '<th>ข้อความ</th>' +
-            '<th>สมัครเมื่อ</th>' +
-            '<th>เข้าสู่ระบบล่าสุด</th>' +
-            '<th>การดำเนินการ</th>' +
-          '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table>';
-    }
-
-    async function handleUserAction(action, userId) {
-      const user = String(userId || '');
-
-      if (!user) {
-        showToast('ไม่พบ User ID', 'error');
-        return;
-      }
-
-      if (action === 'suspend' || action === 'activate') {
-        const suspended = action === 'suspend';
-
-        const answer = await Swal.fire({
-          icon: suspended ? 'warning' : 'question',
-          title: suspended ? 'ยืนยันการระงับบัญชี?' : 'เปิดใช้งานบัญชี?',
-          text: suspended
-            ? 'บัญชีนี้จะถูกระงับและเซสชันของผู้ใช้จะถูกเพิกถอน'
-            : 'บัญชีนี้จะได้รับอนุญาตให้ใช้งานอีกครั้ง',
-          input: suspended ? 'textarea' : undefined,
-          inputLabel: suspended ? 'หมายเหตุ (ถ้ามี)' : undefined,
-          inputPlaceholder: suspended
-            ? 'ระบุหมายเหตุสำหรับบันทึกภายใน'
-            : undefined,
-          showCancelButton: true,
-          confirmButtonText: suspended ? 'ระงับบัญชี' : 'เปิดใช้งาน',
-          cancelButtonText: 'ยกเลิก',
-          confirmButtonColor: suspended ? '#b91c1c' : '#15803d'
-        });
-
-        if (!answer.isConfirmed) {
-          return;
-        }
-
-        try {
-          await apiRequest('adminSetUserStatus', {
-            userId: user,
-            status: suspended ? 'suspended' : 'active'
-          });
-
-          showToast(
-            suspended
-              ? 'ระงับบัญชีสำเร็จ'
-              : 'เปิดใช้งานบัญชีสำเร็จ',
-            'success'
-          );
-
-          await loadUsers();
-          await loadDashboard();
-        } catch (error) {
-          await Swal.fire({
-            icon: 'error',
-            title: 'ดำเนินการไม่สำเร็จ',
-            text: error.message
-          });
-        }
-
-        return;
-      }
-
-      if (action === 'revoke') {
-        const answer = await Swal.fire({
-          icon: 'warning',
-          title: 'เพิกถอนเซสชันของผู้ใช้?',
-          text: 'ผู้ใช้จะต้องเข้าสู่ระบบใหม่หากเซสชันที่ใช้งานอยู่ถูกเพิกถอน',
-          showCancelButton: true,
-          confirmButtonText: 'เพิกถอนเซสชัน',
-          cancelButtonText: 'ยกเลิก',
-          confirmButtonColor: '#b91c1c'
-        });
-
-        if (!answer.isConfirmed) {
-          return;
-        }
-
-        try {
-          const result = await apiRequest(
-            'adminRevokeUserSessions',
-            { userId: user }
-          );
-
-          await Swal.fire({
-            icon: 'success',
-            title: 'เพิกถอนเซสชันสำเร็จ',
-            text: 'จำนวนเซสชันที่เพิกถอน: ' +
-              formatNumber(result.revokedSessions)
-          });
-
-          await loadUsers();
-        } catch (error) {
-          await Swal.fire({
-            icon: 'error',
-            title: 'เพิกถอนเซสชันไม่สำเร็จ',
-            text: error.message
-          });
-        }
-      }
-    }
-
-    /* =========================================================
-       REPORT MANAGEMENT
-       API:
-       adminListReports
-       adminResolveReport
-       ========================================================= */
-
-    async function loadReports() {
-      showLoading('reportsTableContainer', 'กำลังโหลดรายงาน...');
-
-      try {
-        const result = await apiRequest('adminListReports', {
-          page: state.reportsPage,
-          pageSize: CONFIG.DEFAULT_PAGE_SIZE,
-          status: byId('reportsStatus').value
-        });
-
-        const items = result.items || [];
-        const pagination = result.pagination || {};
-
-        state.reportsTotalPages = Math.max(
-          1,
-          Number(pagination.totalPages || 1)
-        );
-
-        renderReportsTable(items);
-
-        renderPagination(
-          'reportsPagination',
-          state.reportsPage,
-          state.reportsTotalPages,
-          pagination.total || 0,
-          function (page) {
-            state.reportsPage = page;
-            loadReports();
-          }
-        );
-      } catch (error) {
-        renderEmpty(
-          'reportsTableContainer',
-          'โหลดรายงานไม่สำเร็จ',
-          error.message
-        );
-
-        byId('reportsPagination').innerHTML = '';
-      }
-    }
-
-    function renderReportsTable(items) {
-      const container = byId('reportsTableContainer');
-
-      if (!items.length) {
-        renderEmpty(
-          'reportsTableContainer',
-          'ไม่พบรายงาน',
-          'ไม่มีรายการที่ตรงกับตัวกรองปัจจุบัน'
-        );
-        return;
-      }
-
-      const rows = items.map(function (report) {
-        const id = escapeHtml(report.reportId || '');
-        const status = String(report.status || '');
-
-        let actions = '';
-
-        if (status === 'pending') {
-          actions =
-            '<div class="button-group">' +
-              '<button class="button button-success button-small" ' +
-                'data-report-action="resolved" data-report-id="' + id + '">' +
-                '<i class="fa-solid fa-check"></i> ดำเนินการแล้ว' +
-              '</button>' +
-              '<button class="button button-secondary button-small" ' +
-                'data-report-action="dismissed" data-report-id="' + id + '">' +
-                '<i class="fa-solid fa-xmark"></i> ยกเลิก' +
-              '</button>' +
-            '</div>';
-        } else {
-          actions =
-            '<button class="button button-secondary button-small" ' +
-              'data-report-action="review" data-report-id="' + id + '">' +
-              '<i class="fa-solid fa-eye"></i> ดูรายละเอียด' +
-            '</button>';
-        }
-
-        return '<tr>' +
-          '<td>' +
-            '<div class="table-primary">' + id + '</div>' +
-            '<div class="table-secondary">' +
-              escapeHtml(formatDate(report.createdAt)) +
-            '</div>' +
-          '</td>' +
-          '<td>' + escapeHtml(report.reason || '-') + '</td>' +
-          '<td>' +
-            '<div class="table-secondary">ผู้รายงาน</div>' +
-            escapeHtml(report.reporterUserId || '-') +
-            '<div class="table-secondary" style="margin-top:6px">เป้าหมาย</div>' +
-            escapeHtml(report.targetUserId || '-') +
-          '</td>' +
-          '<td>' + escapeHtml(report.messageId || '-') + '</td>' +
-          '<td>' + statusBadge(status) + '</td>' +
-          '<td>' + actions + '</td>' +
-        '</tr>';
-      }).join('');
-
-      container.innerHTML =
-        '<table>' +
-          '<thead><tr>' +
-            '<th>รหัสรายงาน</th>' +
-            '<th>เหตุผล</th>' +
-            '<th>ผู้เกี่ยวข้อง</th>' +
-            '<th>Message ID</th>' +
-            '<th>สถานะ</th>' +
-            '<th>การดำเนินการ</th>' +
-          '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table>';
-    }
-
-    async function handleReportAction(action, reportId) {
-      const report = String(reportId || '');
-
-      if (!report) {
-        showToast('ไม่พบ Report ID', 'error');
-        return;
-      }
-
-      if (action === 'review') {
-        await showReportDetails(report);
-        return;
-      }
-
-      let resolution = '';
-
-      if (action === 'resolved' || action === 'dismissed') {
-        const answer = await Swal.fire({
-          icon: action === 'resolved' ? 'question' : 'warning',
-          title: action === 'resolved'
-            ? 'บันทึกว่าดำเนินการแล้ว?'
-            : 'ยกเลิกรายงานนี้?',
-          input: 'textarea',
-          inputLabel: 'ผลการพิจารณา',
-          inputPlaceholder: 'ระบุรายละเอียดการตรวจสอบ',
-          inputAttributes: {
-            maxlength: 1000
-          },
-          showCancelButton: true,
-          confirmButtonText: 'บันทึกผล',
-          cancelButtonText: 'ยกเลิก'
-        });
-
-        if (!answer.isConfirmed) {
-          return;
-        }
-
-        resolution = String(answer.value || '');
-      } else {
-        return;
-      }
-
-      try {
-        await apiRequest('adminResolveReport', {
-          reportId: report,
-          status: action,
-          resolution: resolution
-        });
-
-        showToast('บันทึกผลการพิจารณาแล้ว', 'success');
-
-        await loadReports();
-        await loadDashboard();
-      } catch (error) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'บันทึกผลไม่สำเร็จ',
-          text: error.message
-        });
-      }
-    }
-
-    async function showReportDetails(reportId) {
-      try {
-        const result = await apiRequest('adminListReports', {
-          page: 1,
-          pageSize: 100,
-          status: ''
-        });
-
-        const report = (result.items || []).find(function (item) {
-          return String(item.reportId) === String(reportId);
-        });
-
-        if (!report) {
-          throw new Error(
-            'ไม่พบรายงานในรายการที่ API ส่งกลับมา'
-          );
-        }
-
-        await Swal.fire({
-          title: 'รายละเอียดรายงาน',
-          width: 720,
-          confirmButtonText: 'ปิด',
-          html:
-            '<div style="text-align:left">' +
-              '<p><b>Report ID:</b> ' +
-                escapeHtml(report.reportId) + '</p>' +
-              '<p><b>เหตุผล:</b> ' +
-                escapeHtml(report.reason || '-') + '</p>' +
-              '<p><b>รายละเอียด:</b></p>' +
-              '<div class="content-box">' +
-                escapeHtml(report.details || 'ไม่มีรายละเอียดเพิ่มเติม') +
-              '</div>' +
-              '<p><b>Message ID:</b> ' +
-                escapeHtml(report.messageId || '-') + '</p>' +
-              '<p><b>Target User ID:</b> ' +
-                escapeHtml(report.targetUserId || '-') + '</p>' +
-              '<p><b>สถานะ:</b> ' +
-                escapeHtml(report.status || '-') + '</p>' +
-              '<p><b>ผลการพิจารณา:</b></p>' +
-              '<div class="content-box">' +
-                escapeHtml(report.resolution || '-') +
-              '</div>' +
-            '</div>'
-        });
-      } catch (error) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'โหลดรายละเอียดไม่สำเร็จ',
-          text: error.message
-        });
-      }
-    }
-
-    /* =========================================================
-       MESSAGE REVIEW
-       API: adminListMessages
-       Code.gs ปัจจุบันไม่มี API ลบ/ซ่อนข้อความสำหรับแอดมิน
-       หน้านี้จึงเป็นการตรวจสอบข้อมูลเท่านั้น
-       ========================================================= */
-
-    async function loadMessages() {
-      showLoading('messagesTableContainer', 'กำลังโหลดข้อความ...');
-
-      try {
-        const result = await apiRequest('adminListMessages', {
-          page: state.messagesPage,
-          pageSize: CONFIG.DEFAULT_PAGE_SIZE,
-          status: byId('messagesStatus').value
-        });
-
-        const items = result.items || [];
-        const pagination = result.pagination || {};
-
-        state.messagesTotalPages = Math.max(
-          1,
-          Number(pagination.totalPages || 1)
-        );
-
-        renderMessagesTable(items);
-
-        renderPagination(
-          'messagesPagination',
-          state.messagesPage,
-          state.messagesTotalPages,
-          pagination.total || 0,
-          function (page) {
-            state.messagesPage = page;
-            loadMessages();
-          }
-        );
-      } catch (error) {
-        renderEmpty(
-          'messagesTableContainer',
-          'โหลดข้อความไม่สำเร็จ',
-          error.message
-        );
-
-        byId('messagesPagination').innerHTML = '';
-      }
-    }
-
-    function renderMessagesTable(items) {
-      const container = byId('messagesTableContainer');
-
-      if (!items.length) {
-        renderEmpty(
-          'messagesTableContainer',
-          'ไม่พบข้อความ',
-          'ไม่มีรายการที่ตรงกับตัวกรองปัจจุบัน'
-        );
-        return;
-      }
-
-      const rows = items.map(function (message) {
-        const mediaUrl = safeUrl(message.mediaUrl);
-
-        const media = mediaUrl
-          ? '<a href="' + escapeHtml(mediaUrl) +
-              '" target="_blank" rel="noopener noreferrer">' +
-              'เปิดไฟล์แนบ</a>' +
-              '<img class="media-preview" src="' +
-              escapeHtml(mediaUrl) +
-              '" alt="ไฟล์แนบของข้อความ" loading="lazy">'
-          : '<span class="muted">ไม่มีไฟล์แนบ</span>';
-
-        return '<tr>' +
-          '<td>' +
-            '<div class="table-primary">' +
-              escapeHtml(message.messageId || '-') +
-            '</div>' +
-            '<div class="table-secondary">' +
-              escapeHtml(formatDate(message.createdAt)) +
-            '</div>' +
-          '</td>' +
-          '<td>' +
-            '<div class="table-secondary">ผู้รับ User ID</div>' +
-            escapeHtml(message.recipientUserId || '-') +
-          '</td>' +
-          '<td>' +
-            '<div class="content-box message-preview">' +
-              escapeHtml(message.messageText || '(ไม่มีข้อความ)') +
-            '</div>' +
-          '</td>' +
-          '<td>' + media + '</td>' +
-          '<td>' + statusBadge(message.status || '') + '</td>' +
-          '<td>' + formatNumber(message.reportedCount) + '</td>' +
-          '<td>' + escapeHtml(formatDate(message.readAt)) + '</td>' +
-        '</tr>';
-      }).join('');
-
-      container.innerHTML =
-        '<table>' +
-          '<thead><tr>' +
-            '<th>ข้อความ</th>' +
-            '<th>ผู้รับ</th>' +
-            '<th>เนื้อหา</th>' +
-            '<th>ไฟล์แนบ</th>' +
-            '<th>สถานะ</th>' +
-            '<th>จำนวนรายงาน</th>' +
-            '<th>อ่านเมื่อ</th>' +
-          '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table>';
-    }
-
-    /* =========================================================
-       AUDIT LOGS
-       API: adminAuditLogs
-       ========================================================= */
-
-    async function loadAuditLogs() {
-      showLoading('auditTableContainer', 'กำลังโหลดประวัติ...');
-
-      try {
-        const result = await apiRequest('adminAuditLogs', {
-          page: state.auditPage,
-          pageSize: CONFIG.DEFAULT_PAGE_SIZE
-        });
-
-        const items = result.items || [];
-        const pagination = result.pagination || {};
-
-        state.auditTotalPages = Math.max(
-          1,
-          Number(pagination.totalPages || 1)
-        );
-
-        renderAuditTable(items);
-
-        renderPagination(
-          'auditPagination',
-          state.auditPage,
-          state.auditTotalPages,
-          pagination.total || 0,
-          function (page) {
-            state.auditPage = page;
-            loadAuditLogs();
-          }
-        );
-      } catch (error) {
-        renderEmpty(
-          'auditTableContainer',
-          'โหลดประวัติไม่สำเร็จ',
-          error.message
-        );
-
-        byId('auditPagination').innerHTML = '';
-      }
-    }
-
-    function renderAuditTable(items) {
-      const container = byId('auditTableContainer');
-
-      if (!items.length) {
-        renderEmpty(
-          'auditTableContainer',
-          'ยังไม่มีประวัติ',
-          'ระบบอาจยังไม่มีเหตุการณ์ที่ถูกบันทึก'
-        );
-        return;
-      }
-
-      const rows = items.map(function (log) {
-        return '<tr>' +
-          '<td>' + escapeHtml(formatDate(log.createdAt)) + '</td>' +
-          '<td>' + escapeHtml(log.actorEmail || '-') + '</td>' +
-          '<td>' + escapeHtml(log.action || '-') + '</td>' +
-          '<td>' + escapeHtml(log.targetType || '-') + '</td>' +
-          '<td>' + escapeHtml(log.targetId || '-') + '</td>' +
-          '<td>' +
-            '<div class="content-box">' +
-              escapeHtml(log.details || '-') +
-            '</div>' +
-          '</td>' +
-        '</tr>';
-      }).join('');
-
-      container.innerHTML =
-        '<table>' +
-          '<thead><tr>' +
-            '<th>เวลา</th>' +
-            '<th>ผู้ดำเนินการ</th>' +
-            '<th>เหตุการณ์</th>' +
-            '<th>ประเภทเป้าหมาย</th>' +
-            '<th>Target ID</th>' +
-            '<th>รายละเอียด</th>' +
-          '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table>';
-    }
-
-    /* =========================================================
-       API HEALTH CHECK
-       ========================================================= */
-
-    async function checkHealth() {
-      byId('systemApiStatus').textContent = 'กำลังตรวจสอบ...';
-
-      try {
-        /*
-         * Worker รองรับ GET สำหรับตรวจสอบ health
-         * GET จะส่งต่อไปยัง Code.gs doGet()
-         */
-        const url = getApiUrl();
-        const response = await fetch(url, {
-          method: 'GET',
-          redirect: 'follow',
-          cache: 'no-store'
-        });
-
-        if (!response.ok) {
-          throw new Error('HTTP ' + response.status);
-        }
-
-        const result = await response.json();
-
-        if (!result || !result.ok) {
-          throw new Error(
-            result && result.message
-              ? result.message
-              : 'API health check ไม่สำเร็จ'
-          );
-        }
-
-        byId('systemApiStatus').textContent =
-          'ออนไลน์ · ' + (result.version || 'ไม่ระบุเวอร์ชัน');
-
-        showToast('API ออนไลน์', 'success');
-      } catch (error) {
-        byId('systemApiStatus').textContent =
-          'ตรวจสอบไม่สำเร็จ: ' + error.message;
-
-        showToast(error.message, 'error');
-      }
-    }
-
-    /* =========================================================
-       EVENT LISTENERS
-       ========================================================= */
-
-    function bindEvents() {
-      document.querySelectorAll('.nav-button').forEach(function (button) {
-        button.addEventListener('click', function () {
-          navigateTo(button.dataset.page);
-        });
-      });
-
-      byId('logoutButton').addEventListener('click', logout);
-
-      byId('refreshButton').addEventListener(
-        'click',
-        refreshCurrentPage
-      );
-
-      byId('mobileMenuButton').addEventListener(
-        'click',
-        openMobileMenu
-      );
-
-      byId('mobileOverlay').addEventListener(
-        'click',
-        closeMobileMenu
-      );
-
-      byId('usersFilterForm').addEventListener(
-        'submit',
-        function (event) {
-          event.preventDefault();
-          state.usersPage = 1;
-          loadUsers();
-        }
-      );
-
-      byId('usersResetButton').addEventListener(
-        'click',
-        function () {
-          byId('usersSearch').value = '';
-          byId('usersStatus').value = '';
-          state.usersPage = 1;
-          loadUsers();
-        }
-      );
-
-      byId('reportsFilterForm').addEventListener(
-        'submit',
-        function (event) {
-          event.preventDefault();
-          state.reportsPage = 1;
-          loadReports();
-        }
-      );
-
-      byId('messagesFilterForm').addEventListener(
-        'submit',
-        function (event) {
-          event.preventDefault();
-          state.messagesPage = 1;
-          loadMessages();
-        }
-      );
-
-      byId('systemHealthButton').addEventListener(
-        'click',
-        checkHealth
-      );
-
-      /*
-       * Event delegation สำหรับปุ่มในตารางผู้ใช้
-       */
-      byId('usersTableContainer').addEventListener(
-        'click',
-        function (event) {
-          const button = event.target.closest('[data-user-action]');
-
-          if (!button) {
-            return;
-          }
-
-          handleUserAction(
-            button.dataset.userAction,
-            button.dataset.userId
-          );
-        }
-      );
-
-      /*
-       * Event delegation สำหรับปุ่มรายงาน
-       */
-      byId('reportsTableContainer').addEventListener(
-        'click',
-        function (event) {
-          const button = event.target.closest('[data-report-action]');
-
-          if (!button) {
-            return;
-          }
-
-          handleReportAction(
-            button.dataset.reportAction,
-            button.dataset.reportId
-          );
-        }
-      );
-
-      window.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape') {
-          closeMobileMenu();
-        }
-      });
-    }
-
-    /* =========================================================
-       START APPLICATION
-       ========================================================= */
-
-    async function startApplication() {
-      bindEvents();
-
-      try {
-        /*
-         * ตรวจสอบก่อนว่ามีการกำหนด Worker URL แล้ว
-         */
-        getApiUrl();
-        byId('systemApiUrl').textContent = CONFIG.API_BASE_URL;
-      } catch (error) {
-        showLoginMessage(error.message);
-      }
-
-      initializeGoogleSignIn();
-
-      /*
-       * รอให้ Google Identity Services โหลดเสร็จ
-       * และตรวจสอบ session เดิมหากมี
-       */
-      await restoreSession();
-    }
-
-    document.addEventListener(
-      'DOMContentLoaded',
-      startApplication
+    $("alert").classList.add("open");
+  });
+}
+
+function confirmAction(message) {
+  return alertBox("ยืนยันการดำเนินการ", message, [
+    {label:"ยกเลิก",value:false},
+    {label:"ยืนยัน",value:true,primary:true}
+  ]);
+}
+
+function modal(title, body, saveLabel = "บันทึก") {
+  return new Promise(resolve => {
+    S.resolve = resolve;
+    $("modalTitle").textContent = title;
+    $("modalBody").innerHTML = body;
+    $("modalSave").textContent = saveLabel;
+    $("modal").classList.add("open");
+  });
+}
+
+function closeModal(value = false) {
+  $("modal").classList.remove("open");
+
+  const callback = S.resolve;
+  S.resolve = null;
+
+  callback?.(value);
+}
+
+$("modalX").onclick = () => closeModal(false);
+$("modalCancel").onclick = () => closeModal(false);
+
+$("modal").addEventListener("click", event => {
+  if (event.target === $("modal") && !S.busy) closeModal(false);
+});
+
+$("help").onclick = () => {
+  alertBox(
+    "ติดต่อผู้ดูแลระบบ",
+    "หากไม่มีชื่อผู้ใช้หรือรหัสผ่าน โปรดติดต่อผู้ดูแลระบบของ ActiGallery",
+    [{label:"ตกลง",value:true,primary:true}]
+  );
+};
+
+$("loginForm").onsubmit = async event => {
+  event.preventDefault();
+
+  const username = $("username").value.trim();
+  const password = $("password").value;
+
+  $("loginBtn").disabled = true;
+
+  try {
+    await signInWithEmailAndPassword(
+      auth,
+      usernameEmail(username),
+      password
     );
-  </script>
+  } catch (error) {
+    toast(errorText(error));
+  } finally {
+    $("loginBtn").disabled = false;
+  }
+};
+
+$("logout").onclick = async () => {
+  const ok = await confirmAction("ต้องการออกจากระบบหรือไม่?");
+  if (ok) await signOut(auth);
+};
+
+$("menu").onclick = () => $("side").classList.toggle("open");
+
+document.querySelectorAll(".nav").forEach(button => {
+  button.addEventListener("click", () => {
+    navigate(button.dataset.page);
+    $("side").classList.remove("open");
+  });
+});
+
+/*
+ * LOGIN SESSION
+ */
+onAuthStateChanged(auth, async user => {
+  if (!user) {
+    S.user = null;
+    S.p = null;
+    $("login").classList.remove("hidden");
+    $("app").classList.add("hidden");
+    return;
+  }
+
+  try {
+    S.user = user;
+
+    const profileSnapshot = await getDoc(doc(db, "users", user.uid));
+
+    if (!profileSnapshot.exists()) {
+      throw new Error("ไม่พบโปรไฟล์ กรุณาติดต่อผู้ดูแลระบบ");
+    }
+
+    S.p = {
+      uid:user.uid,
+      ...profileSnapshot.data()
+    };
+
+    if (S.p.status === "disabled") {
+      throw new Error("บัญชีนี้ถูกระงับการใช้งาน");
+    }
+
+    if (!["admin","album_manager"].includes(S.p.role)) {
+      throw new Error("บัญชีนี้ไม่มีบทบาทที่ได้รับอนุญาตให้ใช้ระบบจัดการ");
+    }
+
+    $("login").classList.add("hidden");
+    $("app").classList.remove("hidden");
+
+    $("pname").textContent = S.p.fullName || S.p.username || "ผู้ใช้งาน";
+    $("porg").textContent =
+      S.p.organizationName ||
+      (S.p.role === "admin" ? "ผู้ดูแลระบบ" : "ผู้จัดการอัลบั้ม");
+
+    $("avatar").textContent =
+      (S.p.fullName || S.p.username || "A").slice(0, 1);
+
+    $("adminNav").classList.toggle("hidden", S.p.role !== "admin");
+
+    await reload();
+    navigate("home");
+  } catch (error) {
+    console.error(error);
+    toast(errorText(error));
+    await signOut(auth);
+  }
+});
+
+/*
+ * LOAD DATA
+ */
+async function reload() {
+  if (!S.p) return;
+
+  const isAdmin = S.p.role === "admin";
+
+  const organizationQuery = isAdmin
+    ? query(collection(db, "organizations"), orderBy("name"))
+    : query(
+        collection(db, "organizations"),
+        where("__name__", "==", S.p.organizationId)
+      );
+
+  const usersQuery = isAdmin
+    ? query(
+        collection(db, "users"),
+        orderBy("createdAt", "desc"),
+        limit(500)
+      )
+    : null;
+
+  const albumsQuery = isAdmin
+    ? query(
+        collection(db, "albums"),
+        orderBy("updatedAt", "desc"),
+        limit(500)
+      )
+    : query(
+        collection(db, "albums"),
+        where("organizationId", "==", S.p.organizationId),
+        orderBy("updatedAt", "desc"),
+        limit(500)
+      );
+
+  const results = await Promise.all([
+    getDocs(organizationQuery),
+    isAdmin ? getDocs(usersQuery) : Promise.resolve({docs:[]}),
+    getDocs(albumsQuery),
+    getDocs(query(collection(db, "categories"), orderBy("name")))
+  ]);
+
+  S.orgs = results[0].docs.map(document => ({
+    id:document.id,
+    ...document.data()
+  }));
+
+  S.users = results[1].docs.map(document => ({
+    id:document.id,
+    ...document.data()
+  }));
+
+  S.albums = results[2].docs.map(document => ({
+    id:document.id,
+    ...document.data()
+  }));
+
+  S.categories = results[3].docs.map(document => ({
+    id:document.id,
+    ...document.data()
+  })).filter(category => category.active !== false);
+}
+
+/*
+ * PAGE ROUTING
+ */
+function navigate(page) {
+  const adminPages = ["users","orgs","allAlbums","categories"];
+
+  if (adminPages.includes(page) && S.p?.role !== "admin") {
+    page = "albums";
+  }
+
+  S.page = page;
+
+  document.querySelectorAll(".nav").forEach(button => {
+    button.classList.toggle("active", button.dataset.page === page);
+  });
+
+  const titles = {
+    home:"แดชบอร์ด",
+    users:"จัดการผู้ใช้งาน",
+    orgs:"หน่วยงานและองค์กร",
+    allAlbums:"อัลบั้มทั้งหมด",
+    categories:"จัดการหมวดหมู่",
+    albums:"จัดการอัลบั้ม",
+    profile:"โปรไฟล์ของฉัน"
+  };
+
+  $("topTitle").textContent = titles[page] || "แดชบอร์ด";
+
+  const pages = {
+    home,
+    users:usersPage,
+    orgs:orgPage,
+    allAlbums:() => albumPage(true),
+    albums:() => albumPage(false),
+    categories:categoriesPage,
+    profile:profilePage
+  };
+
+  (pages[page] || home)();
+}
+
+function statCard(label, value) {
+  return `
+    <div class="stat">
+      <div class="statLabel">${esc(label)}</div>
+      <b>${fmt(value)}</b>
+      <small class="muted">ข้อมูลจาก Firebase</small>
+    </div>
+  `;
+}
+
+/*
+ * DASHBOARD HOME
+ */
+function home() {
+  const photos = S.albums.reduce(
+    (total, album) => total + Number(album.photoCount || 0),
+    0
+  );
+
+  $("content").innerHTML = `
+    <div class="pagehead">
+      <div>
+        <h1>สวัสดี ${esc(S.p.fullName || S.p.username || "")}</h1>
+        <p>ภาพรวมระบบคลังภาพกิจกรรม</p>
+      </div>
+      <button class="btn primary" id="quickAdd" type="button">＋ เพิ่มอัลบั้ม</button>
+    </div>
+
+    <div class="stats">
+      ${statCard("จำนวนรูปภาพ", photos)}
+      ${statCard("จำนวนอัลบั้ม", S.albums.length)}
+      ${S.p.role === "admin" ? statCard("หน่วยงาน", S.orgs.length) : ""}
+      ${S.p.role === "admin" ? statCard("ผู้ใช้งาน", S.users.length) : ""}
+    </div>
+
+    <section class="panel">
+      <div class="panelhead">
+        <h3>อัลบั้มล่าสุด</h3>
+        <button class="btn" id="viewAll" type="button">ดูทั้งหมด</button>
+      </div>
+      <div class="tablewrap" id="recentTable"></div>
+    </section>
+
+    ${S.p.role === "admin" ? `
+      <section class="panel">
+        <div class="panelhead">
+          <h3>หมวดหมู่ที่เปิดใช้งาน</h3>
+          <button class="btn" id="viewCategories" type="button">จัดการหมวดหมู่</button>
+        </div>
+        <div class="category-list">
+          ${
+            S.categories.length
+              ? S.categories.map(category => `
+                  <div class="category-item">
+                    <span class="name">${esc(category.name)}</span>
+                  </div>
+                `).join("")
+              : `<div class="empty">ยังไม่มีหมวดหมู่</div>`
+          }
+        </div>
+      </section>
+    ` : ""}
+  `;
+
+  renderAlbumTable($("recentTable"), S.albums.slice(0, 6), false);
+
+  $("quickAdd").onclick = () => editAlbum(null);
+  $("viewAll").onclick = () => navigate(S.p.role === "admin" ? "allAlbums" : "albums");
+
+  if ($("viewCategories")) {
+    $("viewCategories").onclick = () => navigate("categories");
+  }
+}
+
+/*
+ * ALBUM TABLE
+ */
+function renderAlbumTable(element, list, showOrganization) {
+  if (!list.length) {
+    element.innerHTML = `<div class="empty">ยังไม่มีอัลบั้ม</div>`;
+    return;
+  }
+
+  element.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>ชื่ออัลบั้ม</th>
+          ${showOrganization ? "<th>หน่วยงาน</th>" : ""}
+          <th>หมวดหมู่</th>
+          <th>จำนวนรูป</th>
+          <th>สถานะ</th>
+          <th>อัปเดตล่าสุด</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${list.map(album => `
+          <tr>
+            <td>
+              <strong>${esc(album.title || "ไม่มีชื่ออัลบั้ม")}</strong>
+              <div class="muted">${esc(album.description || "")}</div>
+            </td>
+            ${showOrganization ? `<td>${esc(album.organizationName || "—")}</td>` : ""}
+            <td>${esc(categoryName(album.categoryId) || album.categoryName || "ไม่ระบุ")}</td>
+            <td>${fmt(album.photoCount)}</td>
+            <td>
+              <span class="tag ${album.status === "published" ? "" : "red"}">
+                ${album.status === "published" ? "เผยแพร่แล้ว" : esc(album.status || "ไม่ทราบสถานะ")}
+              </span>
+            </td>
+            <td>${dt(album.updatedAt)}</td>
+            <td>
+              <button class="btn" type="button" data-edit="${esc(album.id)}">แก้ไข</button>
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+
+  element.querySelectorAll("[data-edit]").forEach(button => {
+    button.onclick = () => {
+      const album = S.albums.find(item => item.id === button.dataset.edit);
+      if (album) editAlbum(album);
+    };
+  });
+}
+
+function categoryName(categoryId) {
+  const category = S.categories.find(item => item.id === categoryId);
+  return category?.name || "";
+}
+
+/*
+ * ALBUM MANAGEMENT
+ */
+function albumPage(all) {
+  const list = all ? S.albums : S.albums.filter(album =>
+    album.organizationId === S.p.organizationId
+  );
+
+  $("content").innerHTML = `
+    <div class="pagehead">
+      <div>
+        <h1>${all ? "อัลบั้มทั้งหมด" : "จัดการอัลบั้ม"}</h1>
+        <p>${all ? "ดูแลอัลบั้มทั้งหมดในระบบ" : "จัดการอัลบั้มของหน่วยงานที่คุณรับผิดชอบ"}</p>
+      </div>
+      <button class="btn primary" id="addAlbum" type="button">＋ เพิ่มอัลบั้ม</button>
+    </div>
+
+    <div class="toolbar">
+      <input id="albumSearch" type="search" placeholder="ค้นหาชื่ออัลบั้ม หมวดหมู่ หรือคำอธิบาย">
+      <select id="albumCategoryFilter" aria-label="กรองหมวดหมู่">
+        <option value="">ทุกหมวดหมู่</option>
+        ${S.categories.map(category => `
+          <option value="${esc(category.id)}">${esc(category.name)}</option>
+        `).join("")}
+      </select>
+      <select id="albumStatusFilter" aria-label="กรองสถานะ">
+        <option value="">ทุกสถานะ</option>
+        <option value="published">เผยแพร่แล้ว</option>
+        <option value="draft">ฉบับร่าง</option>
+      </select>
+    </div>
+
+    <section class="panel">
+      <div class="tablewrap" id="albumTable"></div>
+    </section>
+  `;
+
+  const draw = () => {
+    const search = $("albumSearch").value.trim().toLowerCase();
+    const categoryId = $("albumCategoryFilter").value;
+    const status = $("albumStatusFilter").value;
+
+    const filtered = list.filter(album => {
+      const searchMatch = [
+        album.title,
+        album.description,
+        album.organizationName,
+        album.categoryName,
+        categoryName(album.categoryId)
+      ].some(value => String(value || "").toLowerCase().includes(search));
+
+      return searchMatch &&
+        (!categoryId || album.categoryId === categoryId) &&
+        (!status || album.status === status);
+    });
+
+    renderAlbumTable($("albumTable"), filtered, all);
+  };
+
+  $("albumSearch").oninput = draw;
+  $("albumCategoryFilter").onchange = draw;
+  $("albumStatusFilter").onchange = draw;
+  $("addAlbum").onclick = () => editAlbum(null);
+
+  draw();
+}
+
+/*
+ * USER MANAGEMENT — ADMIN ONLY
+ */
+function usersPage() {
+  if (S.p.role !== "admin") return navigate("albums");
+
+  $("content").innerHTML = `
+    <div class="pagehead">
+      <div>
+        <h1>จัดการผู้ใช้งาน</h1>
+        <p>สร้างผู้จัดการอัลบั้ม กำหนดหน่วยงาน และจัดการสถานะบัญชี</p>
+      </div>
+      <button class="btn primary" id="addUser" type="button">＋ เพิ่มผู้ใช้งาน</button>
+    </div>
+
+    <div class="toolbar">
+      <input id="userSearch" placeholder="ค้นหาชื่อ ชื่อผู้ใช้ หรือหน่วยงาน">
+    </div>
+
+    <section class="panel">
+      <div class="tablewrap" id="userTable"></div>
+    </section>
+  `;
+
+  const draw = () => {
+    const search = $("userSearch").value.trim().toLowerCase();
+
+    const list = S.users.filter(user => [
+      user.fullName,
+      user.username,
+      user.organizationName
+    ].some(value => String(value || "").toLowerCase().includes(search)));
+
+    $("userTable").innerHTML = list.length ? `
+      <table>
+        <thead>
+          <tr>
+            <th>ชื่อ-สกุล</th>
+            <th>ชื่อผู้ใช้</th>
+            <th>รหัสผู้ใช้</th>
+            <th>หน่วยงาน</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map(user => `
+            <tr>
+              <td>${esc(user.fullName)}</td>
+              <td>${esc(user.username)}</td>
+              <td>${esc(user.publicUserCode || "—")}</td>
+              <td>${esc(user.organizationName || "—")}</td>
+              <td>
+                <span class="tag ${user.status === "disabled" ? "red" : ""}">
+                  ${user.status === "disabled" ? "ระงับ" : "ใช้งาน"}
+                </span>
+              </td>
+              <td>
+                <button class="btn" data-edit="${esc(user.id)}" type="button">แก้ไข</button>
+                <button class="btn" data-toggle="${esc(user.id)}" type="button">
+                  ${user.status === "disabled" ? "เปิดใช้" : "ระงับ"}
+                </button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    ` : `<div class="empty">ไม่พบผู้ใช้งาน</div>`;
+
+    $("userTable").querySelectorAll("[data-edit]").forEach(button => {
+      button.onclick = () => editUser(S.users.find(user => user.id === button.dataset.edit));
+    });
+
+    $("userTable").querySelectorAll("[data-toggle]").forEach(button => {
+      button.onclick = async () => {
+        const user = S.users.find(item => item.id === button.dataset.toggle);
+        if (!user) return;
+
+        const action = user.status === "disabled" ? "เปิดใช้งาน" : "ระงับ";
+        if (!await confirmAction(`ต้องการ${action}บัญชี ${user.username} หรือไม่?`)) return;
+
+        try {
+          await call("setUserStatus")({
+            uid:user.id,
+            status:user.status === "disabled" ? "active" : "disabled"
+          });
+
+          await reload();
+          usersPage();
+          toast("เปลี่ยนสถานะบัญชีแล้ว");
+        } catch (error) {
+          toast(errorText(error));
+        }
+      };
+    });
+  };
+
+  $("userSearch").oninput = draw;
+  $("addUser").onclick = () => editUser(null);
+  draw();
+}
+
+async function editUser(user) {
+  if (S.p.role !== "admin") return toast("เฉพาะผู้ดูแลระบบเท่านั้น");
+  if (!S.orgs.length) return toast("กรุณาเพิ่มหน่วยงานก่อนสร้างผู้ใช้งาน");
+
+  const body = `
+    <div class="formgrid">
+      <div class="field span2">
+        <label>ชื่อ-สกุล *</label>
+        <input name="fullName" required value="${esc(user?.fullName || "")}">
+      </div>
+
+      <div class="field">
+        <label>ชื่อผู้ใช้ *</label>
+        <input
+          name="username"
+          required
+          pattern="[A-Za-z0-9._-]{3,30}"
+          value="${esc(user?.username || "")}"
+          ${user ? "readonly" : ""}
+        >
+      </div>
+
+      <div class="field">
+        <label>หน่วยงาน *</label>
+        <select name="organizationId" required>
+          <option value="">เลือกหน่วยงาน</option>
+          ${S.orgs.map(org => `
+            <option value="${esc(org.id)}" ${user?.organizationId === org.id ? "selected" : ""}>
+              ${esc(org.name)}
+            </option>
+          `).join("")}
+        </select>
+      </div>
+
+      ${
+        user
+          ? `
+            <div class="field span2">
+              <label>รหัสผ่านใหม่ (เว้นว่างหากไม่เปลี่ยน)</label>
+              <input type="password" name="newPassword" minlength="10" autocomplete="new-password">
+              <small class="muted">ต้องมีอย่างน้อย 10 ตัวอักษร</small>
+            </div>
+          `
+          : `
+            <div class="field span2">
+              <label>รหัสผ่านเริ่มต้น *</label>
+              <input type="password" name="password" required minlength="10" autocomplete="new-password">
+              <small class="muted">ระบบสร้างรหัสผู้ใช้ให้อัตโนมัติเมื่อบันทึก</small>
+            </div>
+          `
+      }
+    </div>
+  `;
+
+  if (!await modal(user ? "แก้ไขผู้ใช้งาน" : "เพิ่มผู้ใช้งาน", body)) return;
+
+  const data = Object.fromEntries(new FormData($("modalForm")).entries());
+  const organization = S.orgs.find(item => item.id === data.organizationId);
+
+  if (!organization) return toast("กรุณาเลือกหน่วยงาน");
+
+  try {
+    if (user) {
+      await call("updateUser")({
+        uid:user.id,
+        fullName:data.fullName.trim(),
+        organizationId:data.organizationId,
+        organizationName:organization.name,
+        newPassword:data.newPassword || undefined
+      });
+    } else {
+      const result = await call("createUser")({
+        fullName:data.fullName.trim(),
+        username:data.username.trim(),
+        password:data.password,
+        organizationId:data.organizationId,
+        organizationName:organization.name
+      });
+
+      await alertBox(
+        "สร้างบัญชีสำเร็จ",
+        `ชื่อผู้ใช้: ${data.username}\nรหัสผู้ใช้: ${result.data.publicUserCode || "สร้างแล้ว"}\nโปรดส่งข้อมูลเข้าสู่ระบบผ่านช่องทางที่ปลอดภัย`,
+        [{label:"ตกลง",value:true,primary:true}]
+      );
+    }
+
+    closeModal(false);
+    await reload();
+    usersPage();
+    toast("บันทึกข้อมูลผู้ใช้งานแล้ว");
+  } catch (error) {
+    toast(errorText(error));
+  }
+}
+
+/*
+ * ORGANIZATION MANAGEMENT — ADMIN ONLY
+ */
+function orgPage() {
+  if (S.p.role !== "admin") return navigate("albums");
+
+  $("content").innerHTML = `
+    <div class="pagehead">
+      <div>
+        <h1>หน่วยงานและองค์กร</h1>
+        <p>จัดการชื่อ โลโก้ และข้อมูลหน่วยงาน</p>
+      </div>
+      <button class="btn primary" id="addOrg" type="button">＋ เพิ่มหน่วยงาน</button>
+    </div>
+
+    <section class="panel">
+      <div class="tablewrap" id="orgTable"></div>
+    </section>
+  `;
+
+  $("orgTable").innerHTML = S.orgs.length ? `
+    <table>
+      <thead>
+        <tr>
+          <th>โลโก้</th>
+          <th>ชื่อหน่วยงาน</th>
+          <th>ผู้ใช้งาน</th>
+          <th>อัลบั้ม</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${S.orgs.map(org => `
+          <tr>
+            <td>
+              ${org.logoUrl
+                ? `<img src="${esc(org.logoUrl)}" alt="โลโก้หน่วยงาน" style="width:42px;height:42px;object-fit:contain">`
+                : "—"}
+            </td>
+            <td>${esc(org.name)}</td>
+            <td>${S.users.filter(user => user.organizationId === org.id).length}</td>
+            <td>${S.albums.filter(album => album.organizationId === org.id).length}</td>
+            <td>
+              <button class="btn" data-edit="${esc(org.id)}" type="button">แก้ไข</button>
+              <button class="btn danger" data-del="${esc(org.id)}" type="button">ลบ</button>
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  ` : `<div class="empty">ยังไม่มีหน่วยงาน</div>`;
+
+  $("orgTable").querySelectorAll("[data-edit]").forEach(button => {
+    button.onclick = () => editOrg(S.orgs.find(org => org.id === button.dataset.edit));
+  });
+
+  $("orgTable").querySelectorAll("[data-del]").forEach(button => {
+    button.onclick = async () => {
+      const org = S.orgs.find(item => item.id === button.dataset.del);
+      if (!org) return;
+
+      if (!await confirmAction(`ลบหน่วยงาน “${org.name}” ใช่หรือไม่? ต้องไม่มีผู้ใช้หรืออัลบั้มอ้างอิง`)) return;
+
+      try {
+        await call("deleteOrganization")({organizationId:org.id});
+        await reload();
+        orgPage();
+        toast("ลบหน่วยงานแล้ว");
+      } catch (error) {
+        toast(errorText(error));
+      }
+    };
+  });
+
+  $("addOrg").onclick = () => editOrg(null);
+}
+
+/*
+ * IMG BB UPLOAD
+ */
+async function upload(file) {
+  if (UPLOAD_URL.startsWith("REPLACE_")) {
+    throw new Error("ยังไม่ได้ตั้งค่า URL ของ Cloud Function uploadImage");
+  }
+
+  const token = await S.user.getIdToken();
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", UPLOAD_URL);
+    xhr.setRequestHeader("Authorization", "Bearer " + token);
+
+    xhr.upload.onprogress = event => {
+      if (event.lengthComputable && S.progress) {
+        S.progress(file, event.loaded / event.total);
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const result = JSON.parse(xhr.responseText);
+
+        if (xhr.status >= 200 && xhr.status < 300 && result.success) {
+          resolve(result.image);
+        } else {
+          reject(new Error(result.message || "อัปโหลดไม่สำเร็จ"));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("เครือข่ายขัดข้องระหว่างอัปโหลด"));
+
+    const formData = new FormData();
+    formData.append("image", file, file.name);
+    formData.append("name", file.name);
+    xhr.send(formData);
+  });
+}
+
+async function editOrg(org) {
+  if (S.p.role !== "admin") return toast("เฉพาะผู้ดูแลระบบเท่านั้น");
+
+  const body = `
+    <div class="field">
+      <label>ชื่อหน่วยงานหรือองค์กร *</label>
+      <input name="name" required value="${esc(org?.name || "")}">
+    </div>
+
+    <div class="field">
+      <label>โลโก้หน่วยงาน</label>
+      <input type="file" id="logoFile" accept="image/jpeg,image/png,image/webp,image/gif">
+      <div id="logoPreview" style="margin-top:10px">
+        ${org?.logoUrl
+          ? `<img src="${esc(org.logoUrl)}" alt="โลโก้ปัจจุบัน" style="width:90px;height:90px;object-fit:contain">`
+          : ""}
+      </div>
+      <small class="muted">เลือกไฟล์ภาพจากอุปกรณ์ของคุณ</small>
+    </div>
+  `;
+
+  if (!await modal(org ? "แก้ไขหน่วยงาน" : "เพิ่มหน่วยงาน", body)) return;
+
+  const data = Object.fromEntries(new FormData($("modalForm")).entries());
+  const name = String(data.name || "").trim();
+  const file = $("logoFile").files[0];
+
+  if (!name) return toast("กรุณากรอกชื่อหน่วยงาน");
+
+  try {
+    let logoUrl = org?.logoUrl || "";
+
+    if (file) {
+      const result = await upload(file);
+      logoUrl = result.url;
+    }
+
+    if (org) {
+      await call("updateOrganization")({
+        organizationId:org.id,
+        name,
+        logoUrl
+      });
+    } else {
+      await call("createOrganization")({name,logoUrl});
+    }
+
+    closeModal(false);
+    await reload();
+    orgPage();
+    toast("บันทึกหน่วยงานแล้ว");
+  } catch (error) {
+    toast(errorText(error));
+  }
+}
+
+/*
+ * CATEGORY MANAGEMENT — ADMIN ONLY
+ *
+ * ต้องมี Cloud Functions callable:
+ * saveCategory({categoryId, name, description, active})
+ * deleteCategory({categoryId})
+ *
+ * การตรวจสิทธิ์ admin ต้องทำซ้ำที่ Cloud Functions
+ * ห้ามพึ่งการซ่อนเมนูบนหน้าเว็บเพียงอย่างเดียว
+ */
+function categoriesPage() {
+  if (S.p.role !== "admin") return navigate("albums");
+
+  $("content").innerHTML = `
+    <div class="pagehead">
+      <div>
+        <h1>จัดการหมวดหมู่</h1>
+        <p>สร้างและจัดการหมวดหมู่ที่ผู้จัดการอัลบั้มจะเลือกใช้ได้</p>
+      </div>
+      <button class="btn primary" id="addCategory" type="button">＋ เพิ่มหมวดหมู่</button>
+    </div>
+
+    <section class="panel">
+      <div class="panelhead">
+        <h3>หมวดหมู่ทั้งหมด</h3>
+        <span class="tag blue">${S.categories.length} หมวดหมู่</span>
+      </div>
+      <div class="tablewrap" id="categoryTable"></div>
+    </section>
+
+    <p class="muted" style="font-size:12px">
+      หมวดหมู่ที่มีอัลบั้มใช้งานอยู่ควรปิดการใช้งานแทนการลบ หากต้องการเก็บประวัติอัลบั้มเดิมไว้
+    </p>
+  `;
+
+  const list = [...S.categories].sort((a,b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "th")
+  );
+
+  $("categoryTable").innerHTML = list.length ? `
+    <table>
+      <thead>
+        <tr>
+          <th>ชื่อหมวดหมู่</th>
+          <th>รายละเอียด</th>
+          <th>จำนวนอัลบั้ม</th>
+          <th>สถานะ</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${list.map(category => {
+          const count = S.albums.filter(album =>
+            album.categoryId === category.id
+          ).length;
+
+          return `
+            <tr>
+              <td><strong>${esc(category.name)}</strong></td>
+              <td>${esc(category.description || "—")}</td>
+              <td>${fmt(count)}</td>
+              <td>
+                <span class="tag ${category.active === false ? "red" : ""}">
+                  ${category.active === false ? "ปิดใช้งาน" : "ใช้งาน"}
+                </span>
+              </td>
+              <td>
+                <button class="btn" type="button" data-edit="${esc(category.id)}">แก้ไข</button>
+                <button class="btn" type="button" data-toggle="${esc(category.id)}">
+                  ${category.active === false ? "เปิดใช้" : "ปิดใช้"}
+                </button>
+                <button class="btn danger" type="button" data-del="${esc(category.id)}">ลบ</button>
+              </td>
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  ` : `<div class="empty">ยังไม่มีหมวดหมู่ กด “เพิ่มหมวดหมู่” เพื่อเริ่มต้น</div>`;
+
+  $("addCategory").onclick = () => editCategory(null);
+
+  $("categoryTable").querySelectorAll("[data-edit]").forEach(button => {
+    button.onclick = () => editCategory(
+      S.categories.find(category => category.id === button.dataset.edit)
+    );
+  });
+
+  $("categoryTable").querySelectorAll("[data-toggle]").forEach(button => {
+    button.onclick = async () => {
+      const category = S.categories.find(item => item.id === button.dataset.toggle);
+      if (!category) return;
+
+      const active = category.active === false;
+
+      if (!await confirmAction(
+        `${active ? "เปิดใช้งาน" : "ปิดใช้งาน"}หมวดหมู่ “${category.name}” หรือไม่?`
+      )) return;
+
+      try {
+        await call("saveCategory")({
+          categoryId:category.id,
+          name:category.name,
+          description:category.description || "",
+          active
+        });
+
+        await reload();
+        categoriesPage();
+        toast("เปลี่ยนสถานะหมวดหมู่แล้ว");
+      } catch (error) {
+        toast(errorText(error));
+      }
+    };
+  });
+
+  $("categoryTable").querySelectorAll("[data-del]").forEach(button => {
+    button.onclick = async () => {
+      const category = S.categories.find(item => item.id === button.dataset.del);
+      if (!category) return;
+
+      const usedCount = S.albums.filter(album =>
+        album.categoryId === category.id
+      ).length;
+
+      if (usedCount > 0) {
+        await alertBox(
+          "ยังไม่สามารถลบหมวดหมู่ได้",
+          `หมวดหมู่ “${category.name}” ถูกใช้งานอยู่ ${usedCount} อัลบั้ม\nโปรดเปลี่ยนหมวดหมู่ของอัลบั้มก่อน หรือปิดใช้งานหมวดหมู่นี้แทน`,
+          [{label:"ตกลง",value:true,primary:true}]
+        );
+        return;
+      }
+
+      if (!await confirmAction(`ลบหมวดหมู่ “${category.name}” อย่างถาวรหรือไม่?`)) return;
+
+      try {
+        await call("deleteCategory")({categoryId:category.id});
+        await reload();
+        categoriesPage();
+        toast("ลบหมวดหมู่แล้ว");
+      } catch (error) {
+        toast(errorText(error));
+      }
+    };
+  });
+}
+
+async function editCategory(category) {
+  if (S.p.role !== "admin") return toast("เฉพาะผู้ดูแลระบบเท่านั้น");
+
+  const body = `
+    <div class="field">
+      <label>ชื่อหมวดหมู่ *</label>
+      <input
+        name="name"
+        required
+        maxlength="80"
+        value="${esc(category?.name || "")}"
+        placeholder="เช่น กิจกรรมวิชาการ กีฬา วันสำคัญ"
+      >
+    </div>
+
+    <div class="field">
+      <label>รายละเอียดหมวดหมู่</label>
+      <textarea
+        name="description"
+        maxlength="500"
+        placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)"
+      >${esc(category?.description || "")}</textarea>
+    </div>
+
+    <div class="field">
+      <label>
+        <input
+          type="checkbox"
+          name="active"
+          value="true"
+          style="width:auto"
+          ${category?.active === false ? "" : "checked"}
+        >
+        เปิดให้ผู้จัดการอัลบั้มเลือกหมวดหมู่นี้
+      </label>
+    </div>
+  `;
+
+  if (!await modal(category ? "แก้ไขหมวดหมู่" : "เพิ่มหมวดหมู่", body)) return;
+
+  const form = $("modalForm");
+  const data = Object.fromEntries(new FormData(form).entries());
+  const name = String(data.name || "").trim();
+
+  if (!name) return toast("กรุณากรอกชื่อหมวดหมู่");
+
+  const duplicate = S.categories.find(item =>
+    item.id !== category?.id &&
+    String(item.name || "").trim().toLowerCase() === name.toLowerCase()
+  );
+
+  if (duplicate) return toast("มีชื่อหมวดหมู่นี้อยู่แล้ว");
+
+  try {
+    await call("saveCategory")({
+      categoryId:category?.id || null,
+      name,
+      description:String(data.description || "").trim(),
+      active:data.active === "true"
+    });
+
+    closeModal(false);
+    await reload();
+    categoriesPage();
+    toast("บันทึกหมวดหมู่แล้ว");
+  } catch (error) {
+    toast(errorText(error));
+  }
+}
+
+/*
+ * PHOTO TILE MANAGEMENT
+ */
+function renderTiles() {
+  const grid = $("tiles");
+  if (!grid) return;
+
+  grid.innerHTML = S.tiles.map((tile,index) => `
+    <div
+      class="tile ${S.selecting ? "selecting" : ""} ${S.selected.has(tile.localId) ? "selected" : ""}"
+      draggable="${!S.selecting}"
+      data-i="${index}"
+    >
+      <img src="${esc(tile.preview || tile.displayUrl || tile.url)}" alt="ภาพลำดับ ${index + 1}">
+      <span>${index + 1}</span>
+      <button type="button" class="pick" aria-label="เลือกภาพ"></button>
+      <button type="button" class="dup" data-dup="${index}">ทำซ้ำ</button>
+      <button type="button" class="del" data-del="${index}">ลบ</button>
+    </div>
+  `).join("");
+
+  if ($("tileCount")) $("tileCount").textContent = `${S.tiles.length} ภาพ`;
+
+  if ($("toggleSelect")) {
+    $("toggleSelect").textContent = S.selecting ? "ยกเลิกการเลือก" : "เลือกภาพ";
+  }
+
+  if ($("pickbar")) {
+    $("pickbar").classList.toggle(
+      "show",
+      S.selecting && S.selected.size > 0
+    );
+  }
+
+  if ($("pickCount")) {
+    $("pickCount").textContent = `เลือกแล้ว ${S.selected.size} รูป`;
+  }
+
+  grid.querySelectorAll(".tile").forEach(element => {
+    element.ondragstart = event => {
+      if (S.selecting) {
+        event.preventDefault();
+        return;
+      }
+
+      S.drag = Number(element.dataset.i);
+      element.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+    };
+
+    element.ondragend = () => {
+      element.classList.remove("dragging");
+    };
+
+    element.ondragover = event => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    };
+
+    element.ondrop = event => {
+      event.preventDefault();
+
+      const from = S.drag;
+      const to = Number(element.dataset.i);
+
+      if (from === null || from === to || from === undefined) return;
+
+      const [item] = S.tiles.splice(from, 1);
+      S.tiles.splice(to, 0, item);
+      S.drag = null;
+      renderTiles();
+    };
+
+    element.onclick = event => {
+      if (!S.selecting || event.target.closest("button")) return;
+
+      const tile = S.tiles[Number(element.dataset.i)];
+      if (!tile) return;
+
+      if (S.selected.has(tile.localId)) {
+        S.selected.delete(tile.localId);
+      } else {
+        S.selected.add(tile.localId);
+      }
+
+      renderTiles();
+    };
+  });
+
+  grid.querySelectorAll(".pick").forEach(button => {
+    button.onclick = event => {
+      event.stopPropagation();
+
+      const tile = S.tiles[Number(button.closest(".tile").dataset.i)];
+      if (!tile) return;
+
+      if (S.selected.has(tile.localId)) {
+        S.selected.delete(tile.localId);
+      } else {
+        S.selected.add(tile.localId);
+      }
+
+      renderTiles();
+    };
+  });
+
+  grid.querySelectorAll("[data-dup]").forEach(button => {
+    button.onclick = event => {
+      event.stopPropagation();
+
+      const index = Number(button.dataset.dup);
+      const tile = S.tiles[index];
+      if (!tile) return;
+
+      S.tiles.splice(index + 1, 0, {
+        ...tile,
+        id:undefined,
+        localId:crypto.randomUUID(),
+        duplicate:true
+      });
+
+      renderTiles();
+    };
+  });
+
+  grid.querySelectorAll("[data-del]").forEach(button => {
+    button.onclick = async event => {
+      event.stopPropagation();
+
+      const index = Number(button.dataset.del);
+      const tile = S.tiles[index];
+      if (!tile) return;
+
+      if (!await confirmAction("นำภาพนี้ออกจากอัลบั้มใช่หรือไม่?")) return;
+
+      if (tile.preview && tile.file) URL.revokeObjectURL(tile.preview);
+
+      S.tiles.splice(index, 1);
+      S.selected.delete(tile.localId);
+      renderTiles();
+    };
+  });
+}
+
+document.addEventListener("click", async event => {
+  const id = event.target.id;
+
+  if (id === "toggleSelect") {
+    S.selecting = !S.selecting;
+    if (!S.selecting) S.selected.clear();
+    renderTiles();
+  }
+
+  if (id === "cancelSelect") {
+    S.selecting = false;
+    S.selected.clear();
+    renderTiles();
+  }
+
+  if (id === "duplicateSelected") {
+    const indexes = S.tiles
+      .map((tile,index) => S.selected.has(tile.localId) ? index : -1)
+      .filter(index => index >= 0);
+
+    for (const index of [...indexes].reverse()) {
+      const tile = S.tiles[index];
+
+      S.tiles.splice(index + 1, 0, {
+        ...tile,
+        id:undefined,
+        localId:crypto.randomUUID(),
+        duplicate:true
+      });
+    }
+
+    S.selected.clear();
+    S.selecting = false;
+    renderTiles();
+  }
+
+  if (id === "deleteSelected") {
+    if (!S.selected.size) return;
+
+    if (await confirmAction(`ลบภาพที่เลือก ${S.selected.size} รูปออกจากอัลบั้มใช่หรือไม่?`)) {
+      S.tiles = S.tiles.filter(tile => !S.selected.has(tile.localId));
+      S.selected.clear();
+      S.selecting = false;
+      renderTiles();
+    }
+  }
+});
+
+document.addEventListener("change", event => {
+  if (event.target.id !== "files") return;
+
+  const files = [...event.target.files];
+
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) {
+      toast(`${file.name} ไม่ใช่ไฟล์ภาพ`);
+      continue;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      toast(`${file.name} มีขนาดเกิน 25 MB`);
+      continue;
+    }
+
+    S.tiles.push({
+      file,
+      preview:URL.createObjectURL(file),
+      localId:crypto.randomUUID(),
+      duplicate:false
+    });
+  }
+
+  renderTiles();
+  event.target.value = "";
+});
+
+/*
+ * CREATE / EDIT ALBUM
+ *
+ * ฟิลด์ categoryId จะถูกส่งไปยัง saveAlbum
+ * Cloud Function ต้องตรวจสิทธิ์และบันทึก categoryId/categoryName
+ * ลงในเอกสารอัลบั้มจริง
+ */
+async function editAlbum(album) {
+  S.editing = album;
+  S.tiles = [];
+  S.selected.clear();
+  S.selecting = false;
+
+  if (album) {
+    try {
+      const snapshot = await getDocs(
+        query(
+          collection(db, "photos"),
+          where("albumId", "==", album.id),
+          orderBy("sortOrder", "asc")
+        )
+      );
+
+      S.tiles = snapshot.docs
+        .map(document => {
+          const data = document.data();
+
+          return {
+            id:document.id,
+            ...data,
+            url:data.url,
+            displayUrl:data.displayUrl || data.url,
+            preview:data.displayUrl || data.url,
+            localId:crypto.randomUUID(),
+            duplicate:false
+          };
+        })
+        .filter(tile => tile.url || tile.displayUrl);
+    } catch (error) {
+      console.error(error);
+      return toast("โหลดภาพเดิมไม่สำเร็จ โปรดตรวจสอบ Firestore Rules และ Indexes");
+    }
+  }
+
+  const organizationField = S.p.role === "admin"
+    ? `
+      <div class="field">
+        <label>หน่วยงาน *</label>
+        <select name="organizationId" required>
+          <option value="">เลือกหน่วยงาน</option>
+          ${S.orgs.map(org => `
+            <option value="${esc(org.id)}" ${album?.organizationId === org.id ? "selected" : ""}>
+              ${esc(org.name)}
+            </option>
+          `).join("")}
+        </select>
+      </div>
+    `
+    : `
+      <input type="hidden" name="organizationId" value="${esc(S.p.organizationId || "")}">
+      <div class="field">
+        <label>หน่วยงาน</label>
+        <input disabled value="${esc(S.p.organizationName || "หน่วยงานของฉัน")}">
+      </div>
+    `;
+
+  const availableCategories = S.categories.filter(category => category.active !== false);
+
+  const categoryOptions = availableCategories.map(category => `
+    <option
+      value="${esc(category.id)}"
+      ${album?.categoryId === category.id ? "selected" : ""}
+    >${esc(category.name)}</option>
+  `).join("");
+
+  const categoryField = `
+    <div class="field">
+      <label>หมวดหมู่กิจกรรม *</label>
+      <select name="categoryId" required>
+        <option value="">เลือกหมวดหมู่</option>
+        ${categoryOptions}
+      </select>
+      ${
+        availableCategories.length
+          ? `<small class="muted">เลือกหมวดหมู่ที่ตรงกับกิจกรรมนี้</small>`
+          : `<small style="color:#b42332">ยังไม่มีหมวดหมู่ที่เปิดใช้งาน โปรดติดต่อผู้ดูแลระบบ</small>`
+      }
+    </div>
+  `;
+
+  const body = `
+    <div class="formgrid">
+      <div class="field span2">
+        <label>ชื่ออัลบั้ม *</label>
+        <input
+          name="title"
+          required
+          maxlength="150"
+          value="${esc(album?.title || "")}"
+          placeholder="กรอกชื่อกิจกรรมหรืออัลบั้ม"
+        >
+      </div>
+
+      <div class="field span2">
+        <label>รายละเอียดอัลบั้ม</label>
+        <textarea name="description" maxlength="3000" placeholder="รายละเอียดกิจกรรม">${esc(album?.description || "")}</textarea>
+      </div>
+
+      ${organizationField}
+      ${categoryField}
+
+      <div class="field">
+        <label>วันที่จัดกิจกรรม</label>
+        <input
+          name="eventDate"
+          type="date"
+          value="${esc(dateInputValue(album?.eventDate))}"
+        >
+      </div>
+    </div>
+
+    <div class="field">
+      <label>เลือกภาพจากอุปกรณ์ (เลือกได้หลายไฟล์)</label>
+      <label class="drop" for="files">
+        เลือกภาพจากอุปกรณ์<br>
+        <small>JPG, PNG, WEBP, GIF · ไม่เกิน 25 MB ต่อภาพ</small>
+      </label>
+      <input hidden id="files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;font-size:13px">
+        <b>จัดเรียงภาพ</b>
+        <span id="tileCount" class="muted"></span>
+        <button type="button" class="btn" id="toggleSelect">เลือกภาพ</button>
+      </div>
+
+      <small class="muted">ลากภาพเพื่อเปลี่ยนลำดับ เลือกหลายภาพเพื่อทำซ้ำหรือลบออกจากอัลบั้ม</small>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="pickbar" id="pickbar">
+        <span id="pickCount">เลือกแล้ว 0 รูป</span>
+        <button type="button" id="duplicateSelected">ทำซ้ำ</button>
+        <button type="button" id="deleteSelected">ลบที่เลือก</button>
+        <button type="button" id="cancelSelect">ยกเลิก</button>
+      </div>
+    </div>
+
+    <div class="progress" id="progress">
+      <div class="pmeta">
+        <span id="plabel">กำลังอัปโหลด…</span>
+        <b id="ppct">0%</b>
+      </div>
+      <div class="track"><div class="fill" id="pfill"></div></div>
+      <div class="pmeta">
+        <span id="pdetail"></span>
+        <span id="pphase"></span>
+      </div>
+    </div>
+
+    <p class="muted" id="uploadError" style="font-size:12px;white-space:pre-line"></p>
+  `;
+
+  if (!await modal(album ? "แก้ไขอัลบั้ม" : "เพิ่มอัลบั้ม", body, "อัปโหลดและเผยแพร่")) {
+    S.editing = null;
+    return;
+  }
+
+  /*
+   * หมายเหตุ: modal() จะเปิดหน้าต่างและรอการส่งฟอร์ม
+   * การเรียกนี้ถูกจัดการด้วย modalForm.onsubmit ด้านล่าง
+   */
+}
+
+$("modalForm").onsubmit = async event => {
+  event.preventDefault();
+
+  const hasAlbumForm = Boolean($("tiles"));
+
+  if (!hasAlbumForm) {
+    await saveCurrentModal();
+    return;
+  }
+
+  if (S.busy) return;
+
+  const data = Object.fromEntries(new FormData($("modalForm")).entries());
+
+  const title = String(data.title || "").trim();
+  const organizationId = data.organizationId || S.p.organizationId;
+  const organization = S.orgs.find(item => item.id === organizationId);
+  const category = S.categories.find(item => item.id === data.categoryId && item.active !== false);
+
+  if (!title) return toast("กรุณากรอกชื่ออัลบั้ม");
+  if (!organization) return toast("กรุณาเลือกหน่วยงานให้ถูกต้อง");
+  if (!category) return toast("กรุณาเลือกหมวดหมู่ที่เปิดใช้งาน");
+  if (!S.tiles.length) return toast("กรุณาเลือกภาพอย่างน้อยหนึ่งภาพ");
+
+  S.busy = true;
+  $("modalSave").disabled = true;
+  $("modalCancel").disabled = true;
+  $("modalX").disabled = true;
+  $("progress").style.display = "block";
+
+  const newFiles = S.tiles.filter(tile => tile.file);
+  const totalBytes = newFiles.reduce((total,tile) => total + tile.file.size, 0);
+
+  let bytesDone = 0;
+  let filesDone = 0;
+
+  S.progress = (file, ratio) => {
+    const percent = totalBytes
+      ? Math.min(89, Math.round(((bytesDone + file.size * ratio) / totalBytes) * 89))
+      : 0;
+
+    $("pfill").style.width = percent + "%";
+    $("ppct").textContent = percent + "%";
+    $("plabel").textContent = "กำลังส่งภาพไปยัง ImgBB";
+    $("pdetail").textContent = `${filesDone}/${newFiles.length} ไฟล์`;
+  };
+
+  try {
+    for (const tile of S.tiles) {
+      if (!tile.file) continue;
+
+      const file = tile.file;
+      $("pphase").textContent = `ไฟล์ ${filesDone + 1} จาก ${newFiles.length}`;
+
+      const result = await upload(file);
+
+      tile.url = result.url;
+      tile.displayUrl = result.display_url || result.url;
+      tile.deleteUrl = result.delete_url || "";
+      tile.file = null;
+
+      if (tile.preview && tile.preview.startsWith("blob:")) {
+        URL.revokeObjectURL(tile.preview);
+      }
+
+      tile.preview = tile.displayUrl;
+
+      bytesDone += file.size;
+      filesDone++;
+
+      const percent = totalBytes
+        ? Math.round((bytesDone / totalBytes) * 89)
+        : 89;
+
+      $("pfill").style.width = percent + "%";
+      $("ppct").textContent = percent + "%";
+      $("pdetail").textContent = `${filesDone}/${newFiles.length} ไฟล์`;
+    }
+
+    S.progress = null;
+
+    $("plabel").textContent = "กำลังบันทึกข้อมูลใน Firebase";
+    $("pphase").textContent = "บันทึกข้อมูล";
+    $("pfill").style.width = "94%";
+
+    const photos = S.tiles.map((tile,index) => ({
+      id:tile.id || "",
+      url:tile.url || tile.displayUrl,
+      displayUrl:tile.displayUrl || tile.url,
+      caption:tile.caption || "",
+      sortOrder:index,
+      status:"ready"
+    }));
+
+    /*
+     * Cloud Function saveAlbum ต้อง:
+     * - ตรวจ Firebase Authentication
+     * - ตรวจ role admin / album_manager
+     * - จำกัด album_manager ให้บันทึกได้เฉพาะ organizationId ของตน
+     * - ตรวจ categoryId และบันทึก categoryId/categoryName
+     * - บันทึกอัลบั้มและรายการภาพ
+     * - ตั้ง status = published หลังบันทึกสำเร็จ
+     */
+    await call("saveAlbum")({
+      albumId:S.editing?.id || null,
+      title,
+      description:String(data.description || "").trim(),
+      organizationId,
+      organizationName:organization.name,
+      categoryId:category.id,
+      categoryName:category.name,
+      eventDate:data.eventDate || null,
+      photos
+    });
+
+    $("pfill").style.width = "100%";
+    $("ppct").textContent = "100%";
+    $("plabel").textContent = "บันทึกอัลบั้มเสร็จสิ้น";
+    $("pphase").textContent = "เผยแพร่แล้ว";
+
+    await reload();
+
+    setTimeout(() => {
+      closeModal(false);
+      S.editing = null;
+      navigate(S.page);
+      toast("บันทึกและเผยแพร่อัลบั้มแล้ว");
+    }, 650);
+  } catch (error) {
+    console.error(error);
+    $("uploadError").textContent = errorText(error);
+    $("plabel").textContent = "ดำเนินการไม่สำเร็จ";
+    toast(errorText(error));
+  } finally {
+    S.progress = null;
+    S.busy = false;
+    $("modalSave").disabled = false;
+    $("modalCancel").disabled = false;
+    $("modalX").disabled = false;
+  }
+};
+
+/*
+ * ORGANIZATION FORM SUBMIT
+ */
+async function saveCurrentModal() {
+  const form = $("modalForm");
+  const formType = form.dataset.type;
+
+  if (formType === "category") return;
+  if (formType === "user") return;
+  if (formType === "organization") return;
+
+  /*
+   * ฟอร์มหมวดหมู่และฟอร์มผู้ใช้งานมีตัวจัดการบันทึกเฉพาะ
+   * ในฟังก์ชัน editCategory, editUser และ editOrg
+   */
+}
+
+/*
+ * PROFILE
+ */
+function profilePage() {
+  $("content").innerHTML = `
+    <div class="pagehead">
+      <div>
+        <h1>โปรไฟล์ของฉัน</h1>
+        <p>ข้อมูลบัญชีและความปลอดภัย</p>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div style="padding:20px">
+        <div class="formgrid">
+          <div class="field">
+            <label>ชื่อ-สกุล</label>
+            <input disabled value="${esc(S.p.fullName || "")}">
+          </div>
+          <div class="field">
+            <label>ชื่อผู้ใช้</label>
+            <input disabled value="${esc(S.p.username || "")}">
+          </div>
+          <div class="field">
+            <label>บทบาท</label>
+            <input disabled value="${S.p.role === "admin" ? "ผู้ดูแลระบบ" : "ผู้จัดการอัลบั้ม"}">
+          </div>
+          <div class="field">
+            <label>หน่วยงาน</label>
+            <input disabled value="${esc(S.p.organizationName || "ไม่ระบุ")}">
+          </div>
+        </div>
+
+        <button class="btn primary" id="changePassword" type="button">เปลี่ยนรหัสผ่าน</button>
+      </div>
+    </section>
+  `;
+
+  $("changePassword").onclick = async () => {
+    const body = `
+      <div class="field">
+        <label>รหัสผ่านปัจจุบัน *</label>
+        <input name="oldPassword" type="password" required autocomplete="current-password">
+      </div>
+      <div class="field">
+        <label>รหัสผ่านใหม่ *</label>
+        <input name="newPassword" type="password" required minlength="10" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>ยืนยันรหัสผ่านใหม่ *</label>
+        <input name="confirmPassword" type="password" required minlength="10" autocomplete="new-password">
+      </div>
+    `;
+
+    if (!await modal("เปลี่ยนรหัสผ่าน", body, "เปลี่ยนรหัสผ่าน")) return;
+
+    const data = Object.fromEntries(new FormData($("modalForm")).entries());
+
+    if (data.newPassword !== data.confirmPassword) {
+      return toast("รหัสผ่านใหม่ไม่ตรงกัน");
+    }
+
+    try {
+      await reauthenticateWithCredential(
+        S.user,
+        EmailAuthProvider.credential(S.user.email, data.oldPassword)
+      );
+
+      await updatePassword(S.user, data.newPassword);
+
+      closeModal(false);
+      toast("เปลี่ยนรหัสผ่านแล้ว");
+    } catch (error) {
+      toast(errorText(error));
+    }
+  };
+}
+
+/*
+ * AUTH / MODAL SUBMIT ROUTING
+ */
+const originalModal = modal;
+
+const modalFormTypes = {
+  category:"category",
+  user:"user",
+  organization:"organization",
+  album:"album"
+};
+
+const originalEditCategory = editCategory;
+const originalEditUser = editUser;
+const originalEditOrg = editOrg;
+
+/*
+ * ปิดหน้าต่างได้ด้วยปุ่ม Escape เมื่อไม่มีการอัปโหลดอยู่
+ */
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && $("modal").classList.contains("open") && !S.busy) {
+    closeModal(false);
+  }
+
+  if (event.key === "Escape" && $("alert").classList.contains("open")) {
+    $("alert").classList.remove("open");
+    const callback = S.resolve;
+    S.resolve = null;
+    callback?.(false);
+  }
+});
+
+/*
+ * โหลดข้อมูลและวาดหน้าเริ่มต้นเมื่อเข้าสู่ระบบสำเร็จ
+ */
+</script>
+
 </body>
-            </html>
+</html>
