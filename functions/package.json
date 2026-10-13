@@ -1,0 +1,27 @@
+{
+  "name": "actigallery-functions",
+  "version": "3.0.0",
+  "private": true,
+  "description": "ActiGallery Firebase Cloud Functions Backend",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "deploy:functions": "firebase deploy --only functions",
+    "logs": "firebase functions:log",
+    "lint": "node --check index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.1.2"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.4.1"
+  }
+}
